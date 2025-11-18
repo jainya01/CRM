@@ -31,7 +31,7 @@ function Sales() {
   const [staff, setStaff] = useState([]);
   const [stockError, setStockError] = useState("");
   const [sales, setSales] = useState(false);
-  const popupRef = useRef(null);  
+  const popupRef = useRef(null);
   const buttonRef = useRef(null);
   const navigate = useNavigate();
 
@@ -517,7 +517,7 @@ function Sales() {
               />
 
               {showSectorSuggestions && (
-                <ul className="list-group suggestion-box">
+                <ul className="list-group suggestion-box1 w-100">
                   {filteredSectors.length > 0 ? (
                     filteredSectors.map((s) => (
                       <li
@@ -711,14 +711,26 @@ function Sales() {
                     />
                   </div>
 
-                  <div>
-                    <button
-                      className="btn btn-success"
-                      type="button"
-                      onClick={handleSubmited}
-                    >
-                      Submit
-                    </button>
+                  <div className="d-flex flex-row justify-content-center gap-2">
+                    <div>
+                      <button
+                        className="btn btn-success"
+                        type="button"
+                        onClick={handleSubmited}
+                      >
+                        Submit
+                      </button>
+                    </div>
+
+                    <div>
+                      <button
+                        className="btn btn-danger"
+                        type="button"
+                        onClick={() => setSales((prev) => !prev)}
+                      >
+                        Close
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

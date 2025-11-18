@@ -50,7 +50,6 @@ function StockManagement() {
 
   const [openIndex, setOpenIndex] = useState(null);
   const [staff, setStaff] = useState([]);
-  
 
   const toggleDropdown = (index) => {
     setOpenIndex(openIndex === index ? null : index);

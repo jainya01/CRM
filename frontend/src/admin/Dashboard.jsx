@@ -1,14 +1,5 @@
 import axios from "axios";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-// import {
-//   BarChart,
-//   Bar,
-//   XAxis,
-//   YAxis,
-//   Tooltip,
-//   ResponsiveContainer,
-// } from "recharts";
-
 import {
   LineChart,
   Line,
@@ -269,86 +260,100 @@ function Dashboard() {
     setShowSectorSuggestions(false);
   };
 
+  const totalPax = useMemo(() => {
+    if (!Array.isArray(filteredStockList) || filteredStockList.length === 0)
+      return 0;
+    return filteredStockList.reduce((sum, it) => {
+      const paxNum = Number(it.pax);
+      return sum + (isNaN(paxNum) ? 0 : paxNum);
+    }, 0);
+  }, [filteredStockList]);
+
   return (
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-start mb-0 text-center bg-success gap-5 px-1 m-0 py-3 mt-0">
         <form onSubmit={handleSearch}>
-          <div className="row g-2 ms-lg-3 ms-0 align-items-center">
-            <div className="header-container">
-              <div className="position-relative" ref={sectorRef}>
-                <input
-                  type="search"
-                  className="form-control"
-                  placeholder="Search Sector"
-                  name="sector"
-                  value={stock.sector}
-                  onChange={handleChange}
-                  onFocus={() => {
-                    const q = (stock.sector || "").toString().trim();
-                    if (q) {
-                      const matches = uniqueSectors.filter((s) =>
-                        s.toLowerCase().includes(q.toLowerCase())
-                      );
-                      setFilteredSectors(matches.slice(0, 10));
-                    } else {
-                      setFilteredSectors(uniqueSectors.slice(0, 10));
-                    }
-                    setShowSectorSuggestions(true);
-                  }}
-                  autoComplete="off"
-                  required
-                />
+          <div className="row g-2 ms-lg-3 ms-0 align-items-start">
+            <div
+              className="col-6 col-md-6 col-lg-2 position-relative"
+              ref={sectorRef}
+            >
+              <input
+                type="search"
+                className="form-control custom-form"
+                placeholder="Search Sector"
+                name="sector"
+                value={stock.sector}
+                onChange={handleChange}
+                onFocus={() => {
+                  const q = (stock.sector || "").toString().trim();
+                  if (q) {
+                    const matches = uniqueSectors.filter((s) =>
+                      s.toLowerCase().includes(q.toLowerCase())
+                    );
+                    setFilteredSectors(matches.slice(0, 10));
+                  } else {
+                    setFilteredSectors(uniqueSectors.slice(0, 10));
+                  }
+                  setShowSectorSuggestions(true);
+                }}
+                autoComplete="off"
+                required
+              />
 
-                {showSectorSuggestions && (
-                  <ul
-                    className="list-group suggestion-box"
-                    style={{ zIndex: 9999 }}
-                  >
-                    {filteredSectors.length > 0 ? (
-                      filteredSectors.map((s) => (
-                        <li
-                          key={s}
-                          className="list-group-item list-group-item-action1 px-3"
-                          onClick={() => handleSelectSector(s)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          {s}
-                        </li>
-                      ))
-                    ) : (
-                      <li className="list-group-item text-muted text-danger text-start px-2">
-                        No sector found
+              {showSectorSuggestions && (
+                <ul
+                  className="list-group suggestion-box1 position-absolute w-100"
+                  style={{ zIndex: 9999 }}
+                >
+                  {filteredSectors.length > 0 ? (
+                    filteredSectors.map((s) => (
+                      <li
+                        key={s}
+                        className="list-group-item px-3 text-dark text-start list-group-item-action2"
+                        onClick={() => handleSelectSector(s)}
+                        style={{ cursor: "pointer" }}
+                      >
+                        {s}
                       </li>
-                    )}
-                  </ul>
-                )}
-              </div>
+                    ))
+                  ) : (
+                    <li className="list-group-item text-danger">
+                      No sector found
+                    </li>
+                  )}
+                </ul>
+              )}
             </div>
 
-            <div className="col-6 col-sm-6 col-lg-3">
+            <div className="col-6 col-md-6 col-lg-2">
               <input
                 type="search"
                 placeholder="Select DOT"
-                className="form-control sector-link"
+                className="form-control custom-form"
                 name="dot"
                 value={stock.dot}
                 onChange={handleChange}
-                required={false}
               />
             </div>
 
-            <div className="col-12 col-sm-6 col-lg-3 d-flex gap-2">
-              <button
-                className="btn btn-light flex-shrink-0 sector-link"
-                type="submit"
-              >
+            <div className="col-3 col-md-2 col-sm-2 col-lg-1 d-flex justify-content-start">
+              <button className="btn btn-secondary px-1" type="submit">
                 Search
               </button>
-
-              <div className="col-12 col-sm-6 col-lg-3 d-flex gap-2 align-items-center">
-                <span className="text-light text-start">Result:</span>
-              </div>
             </div>
+
+            {totalPax > 0 && (
+              <div className="col-9 col-md-10 col-sm-10 col-lg-7 mt-2 mt-md-2 ps-0">
+                <div className="p-0 border rounded px-2 ticket-result bg-white text-start">
+                  <span className="fw-bold text-danger">Result: </span>
+                  <span className="seat-contact">
+                    Total {totalPax || 0} Seats available contact travel agency
+                    to book your seats.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </form>
       </div>
@@ -356,7 +361,7 @@ function Dashboard() {
       <div className="container-fluid py-4 dashboard">
         <div className="row">
           <div className="col-12 col-lg-8 mb-4">
-            <div className="chart-wrapper">
+            <div className="chart-wrapper ps-0">
               <ResponsiveContainer width="100%" height={700}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -416,7 +421,7 @@ function Dashboard() {
                         <span className="text-danger">
                           <strong>PNR:</strong> {item.pnr}
                         </span>
-                        <span className="text-danger">
+                        <span className="text-danger text-end">
                           <strong>COST:</strong> {item.fare}/-
                         </span>
                       </div>

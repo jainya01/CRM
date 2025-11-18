@@ -103,7 +103,7 @@ function Otb() {
     };
 
     allOtbData();
-    const interval = setInterval(allOtbData, 5000); // 5 seconds
+    const interval = setInterval(allOtbData, 5000);
 
     return () => {
       mounted = false;

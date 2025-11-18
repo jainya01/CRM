@@ -375,6 +375,27 @@ aside.admin-sidebar {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
+.suggestion-box1 {
+  position: absolute !important;
+  top: 100%;
+  left: 0;
+  width: 100% !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  background: #ffffff !important;
+  border: 1px solid #ccc !important;
+  z-index: 999999 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .suggestion-box1 {
+    max-height: 150px !important;
+  }
+}
+
 .list-group-item-action1 {
   color: black !important;
   text-align: start;
@@ -384,9 +405,21 @@ aside.admin-sidebar {
   color: black !important;
 }
 
+.list-group-item-action2:hover {
+  color: black !important;
+}
+
+.custom-form {
+  margin: 0 !important;
+}
+
 @media (max-width: 768px) {
   .suggestion-box {
     width: 200px !important;
+  }
+
+  .custom-form {
+    margin-top: 10px !important;
   }
 }
 
@@ -427,4 +460,12 @@ aside.admin-sidebar {
     right: 4%;
     top: 15%;
   }
+}
+
+.seat-contact {
+  font-weight: 500;
+}
+
+.ticket-result {
+  padding: 6px 4px 6px 6px !important;
 }
