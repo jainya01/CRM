@@ -31,7 +31,7 @@ function Sales() {
   const [staff, setStaff] = useState([]);
   const [stockError, setStockError] = useState("");
   const [sales, setSales] = useState(false);
-  const popupRef = useRef(null);
+  const popupRef = useRef(null);  
   const buttonRef = useRef(null);
   const navigate = useNavigate();
 
