@@ -1,11 +1,11 @@
-import React, {
+import ReactDOM from "react-dom";
+import {
+  useState,
   useEffect,
   useRef,
-  useState,
-  useCallback,
   useLayoutEffect,
+  useCallback,
 } from "react";
-import ReactDOM from "react-dom";
 import "../App.css";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
@@ -279,7 +279,7 @@ function Otb() {
               <input
                 ref={inputRef}
                 type="search"
-                placeholder="Agent"
+                placeholder="Select Agent"
                 className="form-control sector-link"
                 value={agent.agent_name}
                 onChange={handleAgentNameChange}

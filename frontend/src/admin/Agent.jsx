@@ -89,7 +89,7 @@ function Agent() {
             <div className="col-12 col-sm-6 col-lg-3">
               <input
                 type="text"
-                placeholder="Agent Name"
+                placeholder="Select Agent"
                 className="form-control sector-link"
                 name="agent_name"
                 value={agent.agent_name}
