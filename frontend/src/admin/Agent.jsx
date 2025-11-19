@@ -83,7 +83,7 @@ function Agent() {
 
   return (
     <div className="content-wrapper">
-      <div className="d-flex flex-wrap justify-content-start mb-0 text-center bg-success gap-5 px-1 m-0 py-3 mt-0">
+      <div className="d-flex flex-wrap justify-content-start mb-0 text-center header-color gap-5 px-1 m-0 py-3 mt-0">
         <form onSubmit={handleSubmit}>
           <div className="row g-2 ms-lg-3 ms-0 align-items-center">
             <div className="col-12 col-sm-6 col-lg-3">

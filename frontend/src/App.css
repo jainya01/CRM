@@ -116,14 +116,14 @@ aside.admin-sidebar {
 @media (min-width: 768px) and (max-width: 1024px) {
   .size-text {
     font-size: 16px;
-  }
+  } 
 }
 
 @media (max-width: 767px) {
   .size-text {
     font-size: 14px;
   }
-}
+}    
 
 .left-boxes .turq-box {
   background: #dde7d0;
