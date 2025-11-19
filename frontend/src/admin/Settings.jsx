@@ -94,7 +94,6 @@ function Settings() {
 
   const handleEmailSubmit = async (ev) => {
     ev.preventDefault();
-    if (Object.keys(v).length) return setEmailErrors(v);
 
     setEmailSubmitting(true);
     try {
