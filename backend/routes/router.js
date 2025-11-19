@@ -627,4 +627,38 @@ router.get("/get-logo", async (req, res) => {
   }
 });
 
+router.post("/postmail", async (req, res) => {
+  const { email, description } = req.body;
+  const descValue = description ? description : null;
+  const sql = "INSERT INTO company (email, description) VALUES (?, ?)";
+  db.query(sql, [email, descValue], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send("Database error");
+    }
+    res.send("Email submitted");
+  });
+});
+
+router.get("/allemails", async (req, res) => {
+  const sql = "select *from company";
+  db.query(sql, (err, result) => {
+    if (err) throw err;
+    else {
+      res.json(result);
+    }
+  });
+});
+
+router.delete("/emaildelete/:id", async (req, res) => {
+  const { id } = req.params;
+  const sql = "delete from company where id=?";
+  db.query(sql, [id], (err, result) => {
+    if (err) throw err;
+    else {
+      res.send("data deleted");
+    }
+  });
+});
+
 export default router;

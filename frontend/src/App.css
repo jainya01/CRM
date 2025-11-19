@@ -18,7 +18,7 @@ body {
   width: 70%;
   max-width: 400px;
   height: 100%;
-  background-color: darkblue;
+  background-color: #00008b;
   z-index: 1050;
   overflow-y: auto;
   transition: left 0.3s ease;
@@ -45,7 +45,7 @@ aside.admin-sidebar {
   position: fixed;
   top: 0;
   left: 0;
-  background-color: darkblue;
+  background-color: #00008b;
   border-right: 1px solid rgba(0, 0, 0, 0.08);
   overflow-y: auto;
 }
@@ -110,7 +110,6 @@ aside.admin-sidebar {
 
 .size-text {
   background-color: #dde7d0 !important;
-  /* background-color: #ffe5b4 !important; */
   font-size: 16px;
 }
 
@@ -242,8 +241,6 @@ aside.admin-sidebar {
   }
 }
 
-/* Charts css dashboard page css*/
-
 .dashboard {
   background: #fff;
   color: #333333;
@@ -354,8 +351,6 @@ aside.admin-sidebar {
 .list-group-text:hover {
   color: black !important;
 }
-
-/* sales page select agent */
 
 .header-container {
   overflow: visible !important;

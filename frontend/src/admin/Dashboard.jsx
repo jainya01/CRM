@@ -18,6 +18,7 @@ function Dashboard() {
   const [filteredStockList, setFilteredStockList] = useState([]);
   const [sales, setSales] = useState([]);
   const [openIndex, setOpenIndex] = useState(null);
+  
   const sectorRef = useRef(null);
   const [showSectorSuggestions, setShowSectorSuggestions] = useState(false);
   const [filteredSectors, setFilteredSectors] = useState([]);
