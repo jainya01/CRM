@@ -7,11 +7,12 @@ import axios from "axios";
 const navLinks = [
   { path: "/admin/dashboard", label: "Dashboard", exact: true },
   { path: "/admin/stockmanagement", label: "Stock Management" },
+  { path: "/admin/sales", label: "Sales" },
   { path: "/admin/OTB", label: "OTB" },
   { path: "/admin/urase", label: "URASE" },
-  { path: "/admin/settings", label: "Settings" },
   { path: "/admin/agent", label: "Add Agent" },
   { path: "/admin/staff", label: "Add Staff" },
+  { path: "/admin/settings", label: "Settings" },
 ];
 
 export default function Sidebar() {
