@@ -127,11 +127,13 @@ function Sales() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchAll = async () => {
       try {
         const [agentsRes, stocksRes] = await Promise.all([
-          axios.get(`${API_URL}/allagents`),
-          axios.get(`${API_URL}/allstocks`),
+          axios.get(`${API_URL}/allagents`, { signal: controller.signal }),
+          axios.get(`${API_URL}/allstocks`, { signal: controller.signal }),
         ]);
 
         if (agentsRes.data && agentsRes.data.success) {
@@ -146,13 +148,21 @@ function Sales() {
           setStockList([]);
         }
       } catch (err) {
-        console.error("Error in Promise.all:", err);
-        setAgents([]);
-        setStockList([]);
+        if (axios.isCancel(err)) {
+          console.log("FetchAll request cancelled");
+        } else {
+          console.error("Error in Promise.all:", err);
+          setAgents([]);
+          setStockList([]);
+        }
       }
     };
 
     fetchAll();
+
+    return () => {
+      controller.abort();
+    };
   }, [API_URL]);
 
   const uniqueSectors = Array.from(
@@ -335,19 +345,32 @@ function Sales() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const allSales = async () => {
       try {
-        const response = await axios.get(`${API_URL}/allsales`);
+        const response = await axios.get(`${API_URL}/allsales`, {
+          signal: controller.signal,
+        });
         const payload = response.data?.data ?? response.data;
         setStaff(Array.isArray(payload) ? payload : []);
       } catch (err) {
-        console.error("error fetching allsales:", err);
+        if (axios.isCancel(err)) {
+          console.log("AllSales request cancelled");
+        } else {
+          console.error("Error fetching allsales:", err);
+        }
       }
     };
 
     allSales();
+
     const interval = setInterval(allSales, 1000);
-    return () => clearInterval(interval);
+
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
   }, [API_URL]);
 
   const toggleDropdown = (key) => {
@@ -493,24 +516,6 @@ function Sales() {
       window.removeEventListener("scroll", update, true);
     };
   }, [showSectorSuggestions, stock.sector]);
-
-  const flights = [
-    "LKO MCT RUH 19 NOV OMAN AIR ALHAMD",
-    "LKO MCT RUH 20 NOV OMAN AIR ALHAMD",
-    "LKO MCT RUH 21 NOV OMAN AIR ALHAMD",
-    "LKO MCT RUH 29 NOV OMAN AIR ALHAMD",
-    "LKO MCT RUH 1 DEC OMAN AIR ALHAMD",
-    "LKO MCT RUH 2 DEC OMAN AIR ALHAMD",
-    "LKO MCT RUH 5 DEC OMAN AIR ALHAMD",
-    "LKO MCT RUH 10 DEC OMAN AIR ALHAMD",
-    "LKO MCT RUH 12 DEC OMAN AIR ALHAMD",
-    "LKO MCT RUH 1 JAN OMAN AIR ALHAMD",
-    "LKO MCT RUH 2 JAN OMAN AIR ALHAMD",
-    "LKO MCT RUH 3 JAN OMAN AIR ALHAMD",
-    "LKO MCT RUH 5 JAN OMAN AIR ALHAMD",
-    "LKO MCT RUH 10 JAN OMAN AIR ALHAMD",
-    "LKO MCT RUH 12 JAN OMAN AIR ALHAMD",
-  ];
 
   return (
     <div className="content-wrapper">

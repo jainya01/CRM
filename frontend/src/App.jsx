@@ -14,7 +14,7 @@ import Sales from "./admin/Sales";
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/crm">
       <Routes>
         <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
 

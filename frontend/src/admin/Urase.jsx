@@ -115,16 +115,29 @@ function Urase() {
   const [inputRect, setInputRect] = useState(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const allOtbData = async () => {
       try {
-        const response = await axios.get(`${API_URL}/allagents`);
+        const response = await axios.get(`${API_URL}/allagents`, {
+          signal: controller.signal,
+        });
         setOtb(response.data?.data || response.data || []);
       } catch (error) {
-        console.error("error fetching agents", error);
+        if (axios.isCancel(error)) {
+          console.log("OtbData request cancelled");
+        } else {
+          console.error("Error fetching agents:", error);
+        }
       }
     };
+
     allOtbData();
-  }, []);
+
+    return () => {
+      controller.abort();
+    };
+  }, [API_URL]);
 
   useEffect(() => {
     setShowSuggestions(false);

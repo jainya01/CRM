@@ -57,15 +57,22 @@ function StockManagement() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const allStaff = async () => {
       try {
-        const response = await axios.get(`${API_URL}/allstocks`);
+        const response = await axios.get(`${API_URL}/allstocks`, {
+          signal: controller.signal,
+        });
         const payload = response.data?.data ?? response.data;
-        if (Array.isArray(payload)) setStaff(payload);
-        else setStaff([]);
+        setStaff(Array.isArray(payload) ? payload : []);
       } catch (error) {
-        console.error("error fetching allstocks:", error);
-        setStaff([]);
+        if (axios.isCancel(error)) {
+          console.log("AllStaff request cancelled");
+        } else {
+          console.error("Error fetching allstocks:", error);
+          setStaff([]);
+        }
       }
     };
 
@@ -73,7 +80,10 @@ function StockManagement() {
 
     const interval = setInterval(allStaff, 100);
 
-    return () => clearInterval(interval);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
   }, [API_URL]);
 
   const groupedByHeader = (() => {

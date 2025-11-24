@@ -18,9 +18,12 @@ function Settings() {
   const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchLogo = async () => {
       try {
-        const response = await axios.get(`${API_URL}/get-logo`);
+        const response = await axios.get(`${API_URL}/get-logo`, {
+          signal: controller.signal,
+        });
         const data = response.data;
 
         if (data.success && data.logo && data.logo.logo) {
@@ -30,12 +33,18 @@ function Settings() {
           setLogo(null);
         }
       } catch (error) {
-        console.error("Error fetching logo:", error);
-        setLogo(null);
+        if (axios.isCancel(error)) {
+          console.log("Request cancelled:", error.message);
+        } else {
+          console.error("Error fetching logo:", error);
+          setLogo(null);
+        }
       }
     };
-
     fetchLogo();
+    return () => {
+      controller.abort();
+    };
   }, [API_URL]);
 
   const handleFileSelect = (e) => {
@@ -188,16 +197,28 @@ function Settings() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
     const allemails = async () => {
       try {
-        const response = await axios.get(`${API_URL}/allemails`);
+        const response = await axios.get(`${API_URL}/allemails`, {
+          signal: controller.signal,
+        });
         setEmails(response.data);
       } catch (error) {
-        console.error("error", error);
+        if (axios.isCancel(error)) {
+          console.log("Request cancelled:", error.message);
+        } else {
+          console.error("Error fetching emails:", error);
+        }
       }
     };
+
     allemails();
-  }, []);
+
+    return () => {
+      controller.abort();
+    };
+  }, [API_URL]);
 
   return (
     <div className="content-wrapper">

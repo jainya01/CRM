@@ -42,34 +42,60 @@ function Dashboard() {
   ]);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const stockData = async () => {
       try {
-        const response = await axios.get(`${API_URL}/allstocks`);
+        const response = await axios.get(`${API_URL}/allstocks`, {
+          signal: controller.signal,
+        });
         const data = Array.isArray(response.data?.data)
           ? response.data.data
           : [];
         setStockList(data);
         setFilteredStockList(data);
       } catch (error) {
-        console.error("error fetching stocks", error);
-        setStockList([]);
-        setFilteredStockList([]);
+        if (axios.isCancel(error)) {
+          console.log("Stock request cancelled:", error.message);
+        } else {
+          console.error("Error fetching stocks", error);
+          setStockList([]);
+          setFilteredStockList([]);
+        }
       }
     };
+
     stockData();
+
+    return () => {
+      controller.abort();
+    };
   }, [API_URL]);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchSales = async () => {
       try {
-        const response = await axios.get(`${API_URL}/allsales`);
+        const response = await axios.get(`${API_URL}/allsales`, {
+          signal: controller.signal,
+        });
         setSales(Array.isArray(response.data?.data) ? response.data.data : []);
       } catch (error) {
-        console.error("Error fetching sales:", error);
-        setSales([]);
+        if (axios.isCancel(error)) {
+          console.log("Sales request cancelled:", error.message);
+        } else {
+          console.error("Error fetching sales:", error);
+          setSales([]);
+        }
       }
     };
+
     fetchSales();
+
+    return () => {
+      controller.abort();
+    };
   }, [API_URL]);
 
   const uniqueSectors = useMemo(() => {

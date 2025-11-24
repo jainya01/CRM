@@ -46,30 +46,44 @@ function Staff() {
     }
   };
 
-  const fetchStaff = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/allstaffs`);
-      const agentsRaw = Array.isArray(response.data)
-        ? response.data
-        : response.data.data || [];
-
-      const formattedData = agentsRaw.map((a) => ({
-        name: a.staff_agent ?? a.agent_name ?? "",
-        email: a.staff_email ?? a.agent_email ?? "",
-        raw: a,
-      }));
-
-      setStaffList(formattedData);
-    } catch (error) {
-      console.error("❌ Error fetching agents:", error);
-    }
-  };
-
   useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchStaff = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/allstaffs`, {
+          signal: controller.signal,
+        });
+
+        const agentsRaw = Array.isArray(response.data)
+          ? response.data
+          : response.data.data || [];
+
+        const formattedData = agentsRaw.map((a) => ({
+          name: a.staff_agent ?? a.agent_name ?? "",
+          email: a.staff_email ?? a.agent_email ?? "",
+          raw: a,
+        }));
+
+        setStaffList(formattedData);
+      } catch (error) {
+        if (axios.isCancel(error)) {
+          console.log("FetchStaff request cancelled");
+        } else {
+          console.error("❌ Error fetching agents:", error);
+        }
+      }
+    };
+
     fetchStaff();
-    const interval = setInterval(fetchStaff, 0);
-    return () => clearInterval(interval);
-  }, []);
+
+    const interval = setInterval(fetchStaff, 5000);
+
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
+  }, [API_URL]);
 
   const toggleDropdown = (index) => {
     setDropdownIndex(dropdownIndex === index ? null : index);
