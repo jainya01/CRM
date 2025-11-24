@@ -116,14 +116,14 @@ aside.admin-sidebar {
 @media (min-width: 768px) and (max-width: 1024px) {
   .size-text {
     font-size: 16px;
-  } 
+  }
 }
 
 @media (max-width: 767px) {
   .size-text {
     font-size: 14px;
   }
-}    
+}
 
 .left-boxes .turq-box {
   background: #dde7d0;
@@ -173,6 +173,31 @@ aside.admin-sidebar {
 
 .item-color {
   color: #dc3545 !important;
+  font-size: 16px;
+}
+
+.item-color1 {
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .item-color {
+    font-size: 15px;
+  }
+
+  .item-color1 {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .item-color {
+    font-size: 15px;
+  }
+
+  .item-color1 {
+    font-size: 15px;
+  }
 }
 
 .pointer-class {
@@ -352,37 +377,37 @@ aside.admin-sidebar {
   color: black !important;
 }
 
-.header-container {
-  overflow: visible !important;
+.header-container,
+.position-relative {
   position: relative !important;
-  z-index: 10 !important;
-}
-
-.suggestion-box {
-  position: fixed !important;
-  width: 160px !important;
-  max-height: auto !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  background: #ffffff !important;
-  border: 1px solid #ccc !important;
-  z-index: 999999 !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  overflow: visible !important;
 }
 
 .suggestion-box1 {
   position: absolute !important;
-  top: 100%;
-  left: 0;
+  top: calc(100% + 0px) !important;
+  left: 0 !important;
   width: 100% !important;
-  max-height: 200px !important;
+  max-height: 220px !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  background: #ffffff !important;
+  background: #fff !important;
   border: 1px solid #ccc !important;
-  z-index: 999999 !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
+  border-radius: 6px !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12) !important;
+  z-index: 99999 !important;
+}
+
+.suggestion-box1 .list-group-item {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.header-container {
+  pointer-events: auto;
 }
 
 @media (max-width: 768px) {
@@ -409,10 +434,6 @@ aside.admin-sidebar {
 }
 
 @media (max-width: 768px) {
-  .suggestion-box {
-    width: 200px !important;
-  }
-
   .custom-form {
     margin-top: 10px !important;
   }
@@ -463,4 +484,50 @@ aside.admin-sidebar {
 
 .ticket-result {
   padding: 6px 4px 6px 6px !important;
+}
+
+/* 1111111111111111 */
+
+.sales-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  align-items: start;
+  margin: 20px;
+}
+
+@media (max-width: 992px) {
+  .sales-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .sales-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sales-grid.dropdown-open {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+.sales-grid.dropdown-open .card-wrapper,
+.sales-grid.dropdown-open .card {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.grid-container {
+  padding: 0 !important;
+}
+
+.card-wrapper {
+  align-self: start;
 }

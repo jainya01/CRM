@@ -3,6 +3,7 @@ import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
 import "../App.css";
 import { Link, useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 
 function Sales() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -34,6 +35,10 @@ function Sales() {
   const popupRef = useRef(null);
   const buttonRef = useRef(null);
   const navigate = useNavigate();
+  const [showDate, setShowDate] = useState(false);
+  const [showDate1, setShowDate1] = useState(false);
+  const [showDate2, setShowDate2] = useState(false);
+  const portalRef = useRef(null);
 
   let newStockAdd = (e) => {
     e.stopPropagation();
@@ -62,8 +67,6 @@ function Sales() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [sales]);
-
-  //  new stocks
 
   const [stocks, setStocks] = useState({
     sector: "",
@@ -109,7 +112,19 @@ function Sales() {
     }
   };
 
-  //  new stocks
+  const fetchStocks = async () => {
+    try {
+      const stocksRes = await axios.get(`${API_URL}/allstocks`);
+      if (stocksRes.data && stocksRes.data.success) {
+        setStockList(stocksRes.data.data || []);
+      } else {
+        setStockList([]);
+      }
+    } catch (err) {
+      console.error("fetchStocks error:", err);
+      setStockList([]);
+    }
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -132,7 +147,6 @@ function Sales() {
         }
       } catch (err) {
         console.error("Error in Promise.all:", err);
-
         setAgents([]);
         setStockList([]);
       }
@@ -207,52 +221,6 @@ function Sales() {
   };
 
   function validatePaxValue(paxValue, currentStock) {
-    if (paxValue === "" || paxValue === null || paxValue === undefined) {
-      setStockError("");
-      return;
-    }
-
-    const paxNum = parseInt(paxValue, 10);
-    if (isNaN(paxNum) || paxNum < 0) {
-      setStockError("");
-      return;
-    }
-
-    let stockToCheck = null;
-    if (currentStock.stock_id) {
-      stockToCheck = stockList.find(
-        (s) => String(s.id) === String(currentStock.stock_id)
-      );
-    } else if (
-      currentStock.sector &&
-      currentStock.sector.toString().trim() !== ""
-    ) {
-      stockToCheck = stockList.find(
-        (s) =>
-          (s.sector || "").toString().trim().toLowerCase() ===
-          currentStock.sector.toString().trim().toLowerCase()
-      );
-    }
-
-    if (!stockToCheck) {
-      setStockError("");
-      return;
-    }
-
-    const available = Number(stockToCheck.pax);
-    if (isNaN(available)) {
-      setStockError("Stock has invalid pax data.");
-      return;
-    }
-
-    if (paxNum > available) {
-      setStockError("You entered pax, stock not available.");
-    } else {
-      setStockError("");
-    }
-  }
-
-  function validatePaxValue(paxValue, currentStock) {
     const paxNum = parseInt(paxValue, 10);
     if (isNaN(paxNum) || paxNum < 0) {
       setStockError("");
@@ -296,16 +264,29 @@ function Sales() {
   }
 
   useEffect(() => {
-    function handleClickOutside(e) {
-      if (sectorRef.current && !sectorRef.current.contains(e.target)) {
+    function handleDocClick(e) {
+      if (sectorRef.current && sectorRef.current.contains(e.target)) return;
+      if (portalRef.current && portalRef.current.contains(e.target)) return;
+      if (agentRef.current && agentRef.current.contains(e.target)) return;
+
+      setShowSectorSuggestions(false);
+      setShowAgentSuggestions(false);
+    }
+
+    function handleEsc(e) {
+      if (e.key === "Escape") {
         setShowSectorSuggestions(false);
-      }
-      if (agentRef.current && !agentRef.current.contains(e.target)) {
         setShowAgentSuggestions(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    document.addEventListener("click", handleDocClick);
+    document.addEventListener("keydown", handleEsc);
+
+    return () => {
+      document.removeEventListener("click", handleDocClick);
+      document.removeEventListener("keydown", handleEsc);
+    };
   }, []);
 
   const handleSelectSector = (sector) => {
@@ -369,8 +350,8 @@ function Sales() {
     return () => clearInterval(interval);
   }, [API_URL]);
 
-  const toggleDropdown = (index) => {
-    setOpenIndex(openIndex === index ? null : index);
+  const toggleDropdown = (key) => {
+    setOpenIndex(openIndex === key ? null : key);
   };
 
   const groupedByHeader = (() => {
@@ -478,12 +459,7 @@ function Sales() {
       return;
     }
 
-    try {
-      await fetchStocks();
-    } catch (err) {
-      console.error("fetchStocks after submit failed:", err);
-    }
-
+    await fetchStocks();
     try {
       const allSales = await axios.get(`${API_URL}/allsales`);
       if (allSales.data && allSales.data.success) {
@@ -495,6 +471,46 @@ function Sales() {
       console.error("GET /allsales after submit failed:", err);
     }
   };
+
+  const [coords, setCoords] = useState(null);
+
+  useEffect(() => {
+    function update() {
+      const el = sectorRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [showSectorSuggestions, stock.sector]);
+
+  const flights = [
+    "LKO MCT RUH 19 NOV OMAN AIR ALHAMD",
+    "LKO MCT RUH 20 NOV OMAN AIR ALHAMD",
+    "LKO MCT RUH 21 NOV OMAN AIR ALHAMD",
+    "LKO MCT RUH 29 NOV OMAN AIR ALHAMD",
+    "LKO MCT RUH 1 DEC OMAN AIR ALHAMD",
+    "LKO MCT RUH 2 DEC OMAN AIR ALHAMD",
+    "LKO MCT RUH 5 DEC OMAN AIR ALHAMD",
+    "LKO MCT RUH 10 DEC OMAN AIR ALHAMD",
+    "LKO MCT RUH 12 DEC OMAN AIR ALHAMD",
+    "LKO MCT RUH 1 JAN OMAN AIR ALHAMD",
+    "LKO MCT RUH 2 JAN OMAN AIR ALHAMD",
+    "LKO MCT RUH 3 JAN OMAN AIR ALHAMD",
+    "LKO MCT RUH 5 JAN OMAN AIR ALHAMD",
+    "LKO MCT RUH 10 JAN OMAN AIR ALHAMD",
+    "LKO MCT RUH 12 JAN OMAN AIR ALHAMD",
+  ];
 
   return (
     <div className="content-wrapper">
@@ -515,29 +531,54 @@ function Sales() {
                 autoComplete="off"
                 required
               />
-
-              {showSectorSuggestions && (
-                <ul className="list-group suggestion-box1 w-100">
-                  {filteredSectors.length > 0 ? (
-                    filteredSectors.map((s) => (
-                      <li
-                        key={s}
-                        className="list-group-item list-group-item-action1 px-3"
-                        onClick={() => handleSelectSector(s)}
-                        style={{ cursor: "pointer" }}
-                      >
-                        {s}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="list-group-item text-muted text-danger text-start px-2">
-                      No sector found
-                    </li>
-                  )}
-                </ul>
-              )}
             </div>
           </div>
+
+          {showSectorSuggestions &&
+            coords &&
+            createPortal(
+              <ul
+                className="list-group portal-suggestion-box"
+                ref={portalRef}
+                style={{
+                  position: "absolute",
+                  top: coords.top,
+                  left: coords.left,
+                  width: coords.width,
+                  maxHeight: 320,
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  background: "#fff",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+                  borderRadius: 6,
+                  zIndex: 999999,
+                  marginTop: -8,
+                  padding: 0,
+                  listStyle: "none",
+                }}
+              >
+                {filteredSectors.length > 0 ? (
+                  filteredSectors.map((s) => (
+                    <li
+                      key={s}
+                      className="list-group-it1em text-dark"
+                      style={{ cursor: "pointer", padding: "10px 12px" }}
+                      onClick={() => {
+                        handleSelectSector(s);
+                        setShowSectorSuggestions(false);
+                      }}
+                    >
+                      {s}
+                    </li>
+                  ))
+                ) : (
+                  <li style={{ padding: "8px 12px", color: "#777" }}>
+                    No sector found
+                  </li>
+                )}
+              </ul>,
+              document.body
+            )}
 
           <input
             type="number"
@@ -552,21 +593,29 @@ function Sales() {
           />
 
           <input
-            type="text"
+            type={showDate ? "date" : "text"}
             className="form-control sector-link1"
-            placeholder="DOT"
+            placeholder="Add DOT"
             name="dot"
             value={stock.dot}
+            onFocus={() => setShowDate(true)}
+            onBlur={(e) => {
+              if (!e.target.value) setShowDate(false);
+            }}
             onChange={handleChange}
             required
           />
 
           <input
-            type="text"
+            type={showDate1 ? "date" : "text"}
             className="form-control sector-link1"
-            placeholder="DOTB"
+            placeholder="Add DOTB"
             name="dotb"
             value={stock.dotb}
+            onFocus={() => setShowDate1(true)}
+            onBlur={(e) => {
+              if (!e.target.value) setShowDate1(false);
+            }}
             onChange={handleChange}
             required
           />
@@ -595,7 +644,7 @@ function Sales() {
               />
 
               {showAgentSuggestions && (
-                <ul className="list-group suggestion-box">
+                <ul className="list-group suggestion-box1">
                   {filteredAgents.length > 0 ? (
                     filteredAgents.map((a) => (
                       <li
@@ -630,148 +679,155 @@ function Sales() {
           </Link>
 
           {sales && (
-            <>
-              <div
-                className="new-stock-add"
-                onClick={(e) => e.stopPropagation()}
-                ref={popupRef}
-                role="dialog"
-                aria-modal="true"
-              >
-                <div className="d-flex flex-column gap-2">
-                  <div className="col-12">
-                    <input
-                      type="text"
-                      placeholder="Add sector"
-                      className="form-control"
-                      name="sector"
-                      value={stocks.sector}
-                      onChange={handleChanges}
-                      required
-                    />
+            <div
+              className="new-stock-add"
+              onClick={(e) => e.stopPropagation()}
+              ref={popupRef}
+              role="dialog"
+              aria-modal="true"
+            >
+              <div className="d-flex flex-column gap-2">
+                <div className="col-12">
+                  <input
+                    type="text"
+                    placeholder="Add sector"
+                    className="form-control"
+                    name="sector"
+                    value={stocks.sector}
+                    onChange={handleChanges}
+                    required
+                  />
+                </div>
+
+                <div className="col-12">
+                  <input
+                    type="number"
+                    placeholder="Add PAX"
+                    className="form-control"
+                    name="pax"
+                    value={stocks.pax}
+                    onChange={handleChanges}
+                    required
+                  />
+                </div>
+
+                <div className="col-12">
+                  <input
+                    type={showDate2 ? "date" : "text"}
+                    className="form-control"
+                    placeholder="Add DOT"
+                    name="dot"
+                    value={stocks.dot}
+                    onFocus={() => setShowDate2(true)}
+                    onBlur={(e) => {
+                      if (!e.target.value) setShowDate2(false);
+                    }}
+                    onChange={handleChanges}
+                    required
+                  />
+                </div>
+
+                <div className="col-12">
+                  <input
+                    type="text"
+                    placeholder="Add Fare"
+                    className="form-control"
+                    name="fare"
+                    value={stocks.fare}
+                    onChange={handleChanges}
+                    required
+                  />
+                </div>
+
+                <div className="col-12">
+                  <input
+                    type="text"
+                    placeholder="Add Airline"
+                    className="form-control"
+                    name="airline"
+                    value={stocks.airline}
+                    onChange={handleChanges}
+                    required
+                  />
+                </div>
+
+                <div className="col-12">
+                  <input
+                    type="text"
+                    placeholder="Add PNR"
+                    className="form-control"
+                    name="pnr"
+                    value={stocks.pnr}
+                    onChange={handleChanges}
+                    required
+                  />
+                </div>
+
+                <div className="d-flex flex-row justify-content-center gap-2">
+                  <div>
+                    <button
+                      className="btn btn-success"
+                      type="button"
+                      onClick={handleSubmited}
+                    >
+                      Submit
+                    </button>
                   </div>
 
-                  <div className="col-12">
-                    <input
-                      type="text"
-                      placeholder="Add PAX"
-                      className="form-control"
-                      name="pax"
-                      value={stocks.pax}
-                      onChange={handleChanges}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-12">
-                    <input
-                      type="text"
-                      placeholder="Add DOT"
-                      className="form-control"
-                      name="dot"
-                      value={stocks.dot}
-                      onChange={handleChanges}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-12">
-                    <input
-                      type="text"
-                      placeholder="Add Fare"
-                      className="form-control"
-                      name="fare"
-                      value={stocks.fare}
-                      onChange={handleChanges}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-12">
-                    <input
-                      type="text"
-                      placeholder="Add Airline"
-                      className="form-control"
-                      name="airline"
-                      value={stocks.airline}
-                      onChange={handleChanges}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-12">
-                    <input
-                      type="text"
-                      placeholder="Add PNR"
-                      className="form-control"
-                      name="pnr"
-                      value={stocks.pnr}
-                      onChange={handleChanges}
-                      required
-                    />
-                  </div>
-
-                  <div className="d-flex flex-row justify-content-center gap-2">
-                    <div>
-                      <button
-                        className="btn btn-success"
-                        type="button"
-                        onClick={handleSubmited}
-                      >
-                        Submit
-                      </button>
-                    </div>
-
-                    <div>
-                      <button
-                        className="btn btn-danger"
-                        type="button"
-                        onClick={() => setSales((prev) => !prev)}
-                      >
-                        Close
-                      </button>
-                    </div>
+                  <div>
+                    <button
+                      className="btn btn-danger"
+                      type="button"
+                      onClick={() => setSales((prev) => !prev)}
+                    >
+                      Close
+                    </button>
                   </div>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </form>
       </div>
-
-      <div className="row p-3">
-        {groupedByHeader.map((group, index) => {
+      <div className="sales-grid grid-container">
+        {groupedByHeader.map((group) => {
           const first = group.items[0] ?? {};
           const pnr = first.pnr ?? "-";
           const fare = first.fare ?? "-";
+
+          const cardKey = group.key;
 
           const headerText = `${group.sector} ${group.dot} ${group.airline} ${
             group.agent !== "-" ? group.agent : "-"
           }`;
 
           return (
-            <div
-              key={group.key ?? index}
-              className="col-12 col-sm-6 col-md-6 col-lg-4 mb-3"
-            >
+            <div key={cardKey} className="card-wrapper">
               <div className="card border-0 shadow-sm">
                 <div className="card-header size-text text-dark rounded-0 d-flex justify-content-between align-items-center turq-box">
-                  <div style={{ wordBreak: "break-word" }}>{headerText}</div>
+                  <div
+                    className="item-color1"
+                    style={{ wordBreak: "break-word" }}
+                  >
+                    {headerText}
+                  </div>
+
                   <div
                     className="turq-caret"
                     role="button"
-                    onClick={() => toggleDropdown(index)}
+                    onClick={() => toggleDropdown(cardKey)}
                   >
-                    {openIndex === index ? "▴" : "▾"}
+                    {openIndex === cardKey ? "▴" : "▾"}
                   </div>
                 </div>
 
-                {openIndex === index && (
+                {openIndex === cardKey && (
                   <div className="card-body p-0">
                     <div className="d-flex justify-content-between align-items-center mb-2 px-2 py-2 flex-wrap">
                       <span className="text-danger me-2">
                         <strong>PNR:</strong> {pnr}
                       </span>
+
                       <span className="text-danger">
                         <strong>COST:</strong> {fare}
                       </span>
@@ -787,6 +843,7 @@ function Sales() {
                             <th style={{ width: "30%" }}>AGENT</th>
                           </tr>
                         </thead>
+
                         <tbody>
                           {group.items.map((it, idx) => {
                             const paxName =

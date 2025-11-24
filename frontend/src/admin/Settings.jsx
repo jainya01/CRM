@@ -98,19 +98,27 @@ function Settings() {
     setEmailSubmitting(true);
     try {
       const payload = {
-        email: emailForm.email.trim(),
-        description: emailForm.description.trim(),
+        email: (emailForm.email || "").trim(),
+        description: (emailForm.description || "").trim(),
       };
 
       const response = await axios.post(`${API_URL}/postmail`, payload);
 
       const isSuccess =
         (response.data && response.data.success === true) ||
-        response.data === "Email submitted" ||
         response.status === 200;
 
       if (isSuccess) {
-        setEmails((prev) => [payload, ...prev]);
+        const newRow = {
+          id: response.data?.insertedId ?? Date.now(),
+          email: payload.email,
+          description: payload.description,
+        };
+
+        setEmails((prev) =>
+          Array.isArray(prev) ? [newRow, ...prev] : [newRow]
+        );
+
         setEmailForm({ email: "", description: "" });
         setShowEmailForm(false);
 

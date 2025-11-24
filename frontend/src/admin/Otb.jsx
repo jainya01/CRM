@@ -267,37 +267,32 @@ function Otb() {
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-start mb-0 text-center header-color gap-5 px-1 m-0 py-3 mt-0">
         <form onSubmit={handleSubmit}>
-          <div
-            className="d-flex gap-3 ms-lg-3 ms-0"
-            style={{ alignItems: "flex-start" }}
-          >
-            <div
-              className="position-relative"
-              style={{ minWidth: 240, zIndex: 10 }}
-              ref={wrapperRef}
-            >
-              <input
-                ref={inputRef}
-                type="search"
-                placeholder="Select Agent"
-                className="form-control sector-link"
-                value={agent.agent_name}
-                onChange={handleAgentNameChange}
-                onFocus={() => {
-                  if (agent.agent_name) {
-                    setShowSuggestions(true);
-                    measureInput();
-                  }
-                }}
-                autoComplete="off"
-                required
-              />
+          <div className="row g-3 align-items-start ms-lg-3 ms-0">
+            <div className="col-md-4 col-6 col-sm-6">
+              <div className="position-relative w-100" ref={wrapperRef}>
+                <input
+                  ref={inputRef}
+                  type="search"
+                  placeholder="Select Agent"
+                  className="form-control sector-link"
+                  value={agent.agent_name}
+                  onChange={handleAgentNameChange}
+                  onFocus={() => {
+                    if (agent.agent_name) {
+                      setShowSuggestions(true);
+                      measureInput();
+                    }
+                  }}
+                  autoComplete="off"
+                  required
+                />
+              </div>
             </div>
 
-            <div>
+            <div className="col-md-4 col-6 col-sm-6">
               <input
                 type="email"
-                placeholder="Form mail"
+                placeholder="From mail"
                 className="form-control sector-link"
                 value={agent.mail}
                 onChange={handleMailChange}
@@ -305,9 +300,9 @@ function Otb() {
               />
             </div>
 
-            <div>
+            <div className="col-md-4 col-12 d-flex justify-content-start justify-content-md-start">
               <button
-                className="btn btn-light sector-link"
+                className="btn btn-light sector-link w-md-auto"
                 type="submit"
                 disabled={loading}
               >

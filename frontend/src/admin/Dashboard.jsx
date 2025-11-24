@@ -182,6 +182,7 @@ function Dashboard() {
 
       if (name === "sector") {
         const q = (value || "").toString().trim();
+
         if (!q) {
           setFilteredSectors([]);
           setShowSectorSuggestions(false);
@@ -192,7 +193,6 @@ function Dashboard() {
           setFilteredSectors(matches.slice(0, 10));
           setShowSectorSuggestions(true);
         }
-        if (newStock.pax) validatePaxValue(newStock.pax, newStock);
       }
 
       if (name === "pax") {
@@ -287,16 +287,7 @@ function Dashboard() {
                 value={stock.sector}
                 onChange={handleChange}
                 onFocus={() => {
-                  const q = (stock.sector || "").toString().trim();
-                  if (q) {
-                    const matches = uniqueSectors.filter((s) =>
-                      s.toLowerCase().includes(q.toLowerCase())
-                    );
-                    setFilteredSectors(matches.slice(0, 10));
-                  } else {
-                    setFilteredSectors(uniqueSectors.slice(0, 10));
-                  }
-                  setShowSectorSuggestions(true);
+                  return;
                 }}
                 autoComplete="off"
                 required

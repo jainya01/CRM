@@ -50,6 +50,7 @@ function StockManagement() {
 
   const [openIndex, setOpenIndex] = useState(null);
   const [staff, setStaff] = useState([]);
+  const [showDate, setShowDate] = useState(false);
 
   const toggleDropdown = (index) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -120,7 +121,7 @@ function StockManagement() {
           />
 
           <input
-            type="search"
+            type="number"
             className="form-control sector-link1"
             placeholder="Add PAX"
             name="pax"
@@ -130,11 +131,15 @@ function StockManagement() {
           />
 
           <input
-            type="search"
+            type={showDate ? "date" : "text"}
             className="form-control sector-link1"
             placeholder="Add DOT"
             name="dot"
             value={stock.dot}
+            onFocus={() => setShowDate(true)}
+            onBlur={(e) => {
+              if (!e.target.value) setShowDate(false);
+            }}
             onChange={handleChange}
             required
           />
@@ -196,7 +201,12 @@ function StockManagement() {
             >
               <div className="card border-0 shadow-sm">
                 <div className="card-header size-text text-dark rounded-0 d-flex justify-content-between align-items-center turq-box">
-                  <div style={{ wordBreak: "break-word" }}>{headerText}</div>
+                  <div
+                    className="item-color1"
+                    style={{ wordBreak: "break-word" }}
+                  >
+                    {headerText}
+                  </div>
                   <div
                     className="turq-caret"
                     role="button"

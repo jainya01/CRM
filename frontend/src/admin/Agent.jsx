@@ -89,7 +89,7 @@ function Agent() {
             <div className="col-12 col-sm-6 col-lg-3">
               <input
                 type="text"
-                placeholder="Select Agent"
+                placeholder="Agent name"
                 className="form-control sector-link"
                 name="agent_name"
                 value={agent.agent_name}
@@ -101,7 +101,7 @@ function Agent() {
             <div className="col-12 col-sm-6 col-lg-3">
               <input
                 type="email"
-                placeholder="Agent Email"
+                placeholder="Agent email"
                 className="form-control sector-link"
                 name="agent_email"
                 value={agent.agent_email}
@@ -113,7 +113,7 @@ function Agent() {
             <div className="col-12 col-sm-6 col-lg-3">
               <input
                 type="password"
-                placeholder="Agent Password"
+                placeholder="Agent password"
                 className="form-control sector-link"
                 name="agent_password"
                 value={agent.agent_password}
@@ -133,7 +133,7 @@ function Agent() {
               <input
                 type="search"
                 className="form-control sector-link"
-                placeholder="Search Agent"
+                placeholder="Search agent"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
