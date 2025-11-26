@@ -325,7 +325,7 @@ function StockManagement() {
                           )}
                         </strong>
                       </span>
-                      <span className="text-success fw-bold">
+                      <span className="text-success fw-bold pe-1">
                         Seats Left:{" "}
                         <strong className="text-success">
                           {group.items.reduce(
