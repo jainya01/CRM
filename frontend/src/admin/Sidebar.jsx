@@ -42,6 +42,7 @@ const resolveRole = () => {
 
 export default function Sidebar() {
   const API_URL = import.meta.env.VITE_API_URL;
+
   const [isOpen, setIsOpen] = useState(false);
   const [logo, setLogo] = useState(null);
   const navigate = useNavigate();
@@ -67,15 +68,11 @@ export default function Sidebar() {
 
   const toggleSidebar = () => setIsOpen(!isOpen);
   const closeSidebar = () => setIsOpen(false);
-
   const role = resolveRole();
-
   let visibleLinks = NAV_LINKS;
 
   if (role === "agent") {
-    visibleLinks = NAV_LINKS.filter((l) =>
-      ["/admin/dashboard", "/admin/agent"].includes(l.path)
-    );
+    visibleLinks = NAV_LINKS.filter((l) => l.path === "/admin/dashboard");
   }
 
   const handleLogout = (e) => {

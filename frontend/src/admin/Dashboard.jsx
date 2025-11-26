@@ -308,7 +308,10 @@ function Dashboard() {
 
       const sDot = (s.dot || "").toLowerCase();
       const dotQuery = (stock.dot || "").trim().toLowerCase();
-      return sSector.includes(sectorQuery) && sDot.includes(dotQuery);
+      return (
+        (s.sector || "").toLowerCase().includes(sectorQuery) &&
+        sDot.includes(dotQuery)
+      );
     });
 
     setFilteredStockList(filtered);

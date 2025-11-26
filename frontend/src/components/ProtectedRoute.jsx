@@ -51,7 +51,7 @@ const ProtectedRoute = () => {
 
   if (role === "agent") {
     const pathname = location.pathname;
-    const allowedRoots = ["/admin/dashboard", "/admin/agent"];
+    const allowedRoots = ["/admin/dashboard"];
 
     const allowed = allowedRoots.some(
       (root) => pathname === root || pathname.startsWith(root + "/")
