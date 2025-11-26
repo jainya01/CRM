@@ -2,6 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import multer from "multer";
 import fs from "fs/promises";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import path from "path";
 import { fileURLToPath } from "url";
 import pool from "../config/db.js";
@@ -24,6 +26,143 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // stock management
+
+router.post("/adminlogin", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required." });
+    }
+
+    const [rows] = await pool.execute("SELECT * FROM admin WHERE email = ?", [
+      email,
+    ]);
+
+    if (rows.length === 0) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    const admin = rows[0];
+
+    let isMatch = false;
+
+    if (admin.password && admin.password.length > 0) {
+      try {
+        isMatch = await bcrypt.compare(password, admin.password);
+      } catch (err) {
+        isMatch = false;
+      }
+    }
+
+    if (!isMatch && admin.password === password) {
+      isMatch = true;
+    }
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    if (!["admin", "superadmin"].includes(admin.role)) {
+      return res
+        .status(403)
+        .json({ message: "You do not have permission to login as admin." });
+    }
+
+    const token = jwt.sign(
+      { id: admin.id, email: admin.email, role: admin.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "8h" }
+    );
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/agentlogin", async (req, res) => {
+  try {
+    const { agent_email, agent_password } = req.body;
+
+    if (!agent_email || !agent_password) {
+      return res
+        .status(400)
+        .json({ message: "Agent email and password are required." });
+    }
+
+    const [rows] = await pool.query(
+      "SELECT * FROM agent WHERE agent_email = ? LIMIT 1",
+      [agent_email]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    const agent = rows[0];
+
+    let isMatch = false;
+
+    if (agent.agent_password && agent.agent_password.length > 0) {
+      try {
+        isMatch = await bcrypt.compare(agent_password, agent.agent_password);
+      } catch (err) {
+        isMatch = false;
+      }
+    }
+
+    if (!isMatch && agent.agent_password === agent_password) {
+      isMatch = true;
+    }
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error(
+        "JWT_SECRET is not defined in your environment variables."
+      );
+    }
+
+    const token = jwt.sign(
+      {
+        id: agent.id,
+        email: agent.agent_email,
+        role: "agent",
+      },
+      secret,
+      { expiresIn: "8h" }
+    );
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      agent: {
+        id: agent.id,
+        email: agent.agent_email,
+        name: agent.name,
+        role: "agent",
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 router.post("/stockpost", async (req, res) => {
   try {
@@ -75,29 +214,32 @@ router.get("/allstocks", async (req, res) => {
     const offset = (page - 1) * limit;
 
     const sql = `
-      SELECT id, sector, pax, dot, fare, airline, pnr, created_at, updated_at
+      SELECT id, sector, pax, sold, dot, fare, airline, pnr, created_at, updated_at
       FROM stock
-      WHERE pax > 0
+      WHERE (pax - sold) > 0
       ORDER BY id DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
 
     const [rows] = await pool.execute(sql);
 
+    const updatedRows = rows.map((item) => ({
+      ...item,
+      pax: item.pax - item.sold,
+    }));
+
     return res.status(200).json({
       success: true,
-      count: rows.length,
+      count: updatedRows.length,
       page,
       limit,
-      data: rows,
+      data: updatedRows,
     });
   } catch (error) {
     console.error("❌ Server error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
-// sales
 
 router.post("/salespost", async (req, res) => {
   try {
@@ -111,13 +253,7 @@ router.post("/salespost", async (req, res) => {
       });
     }
 
-    const paxSold = parseInt(pax, 10);
-    if (isNaN(paxSold) || paxSold <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid pax value. Must be a positive integer.",
-      });
-    }
+    const incrementAmount = 1;
 
     const hasStockId =
       stock_id !== undefined && stock_id !== null && stock_id !== "";
@@ -137,7 +273,7 @@ router.post("/salespost", async (req, res) => {
         await conn.beginTransaction();
 
         const [selRows] = await conn.execute(
-          "SELECT id, sector, pax, dot, airline, fare, pnr FROM stock WHERE id = ? FOR UPDATE",
+          "SELECT id, sector, pax, sold, dot, airline, fare, pnr FROM stock WHERE id = ? FOR UPDATE",
           [stockIdNum]
         );
 
@@ -149,21 +285,14 @@ router.post("/salespost", async (req, res) => {
         }
 
         const stockRow = selRows[0];
-        const availablePax = Number(stockRow.pax);
-        if (isNaN(availablePax)) {
-          console.error("Invalid pax type in DB for stock id:", stockIdNum);
-          await conn.rollback();
-          return res.status(500).json({
-            success: false,
-            message: "Invalid stock pax value in DB.",
-          });
-        }
 
-        if (availablePax < paxSold) {
+        if (Number(stockRow.sold) + incrementAmount > Number(stockRow.pax)) {
           await conn.rollback();
           return res.status(400).json({
             success: false,
-            message: `Not enough pax in stock. Available: ${availablePax}, requested: ${paxSold}`,
+            message: `Cannot sell more than available pax. Remaining: ${
+              stockRow.pax - stockRow.sold
+            }`,
           });
         }
 
@@ -174,17 +303,9 @@ router.post("/salespost", async (req, res) => {
         if (!pnr) pnr = stockRow.pnr;
 
         const [updResult] = await conn.execute(
-          "UPDATE stock SET pax = pax - ? WHERE id = ?",
-          [paxSold, stockIdNum]
+          "UPDATE stock SET sold = sold + ? WHERE id = ?",
+          [incrementAmount, stockIdNum]
         );
-
-        if (!updResult || updResult.affectedRows === 0) {
-          await conn.rollback();
-          return res.status(400).json({
-            success: false,
-            message: "Failed to update stock pax.",
-          });
-        }
 
         const insertSql = `
           INSERT INTO sales (stock_id, sector, pax, dot, dotb, airline, agent, fare, pnr)
@@ -193,7 +314,7 @@ router.post("/salespost", async (req, res) => {
         const [insResult] = await conn.execute(insertSql, [
           stockIdNum,
           sector,
-          paxSold,
+          pax,
           dot,
           dotb,
           airline,
@@ -203,18 +324,15 @@ router.post("/salespost", async (req, res) => {
         ]);
 
         await conn.commit();
-
         return res.status(200).json({
           success: true,
-          message: "Sale added and stock pax decreased successfully",
+          message: "Sale added and stock sold incremented by 1",
           insertedId: insResult.insertId,
         });
       } catch (txErr) {
         try {
           await conn.rollback();
-        } catch (rbErr) {
-          console.error("Rollback error:", rbErr);
-        }
+        } catch (_) {}
         console.error("Transaction error:", txErr);
         return res
           .status(500)
@@ -225,39 +343,110 @@ router.post("/salespost", async (req, res) => {
     }
 
     try {
-      const [selBySector] = await pool.execute(
-        "SELECT id, fare, pnr FROM stock WHERE sector = ? LIMIT 1",
-        [sector]
-      );
-      if (selBySector && selBySector.length > 0) {
-        const stockRow = selBySector[0];
-        if (!fare) fare = stockRow.fare;
-        if (!pnr) pnr = stockRow.pnr;
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+
+        const [selBySector] = await conn.execute(
+          "SELECT id, pax, sold, fare, pnr, sector, dot, airline FROM stock WHERE sector = ? LIMIT 1 FOR UPDATE",
+          [sector]
+        );
+
+        if (selBySector && selBySector.length > 0) {
+          const stockRow = selBySector[0];
+
+          if (Number(stockRow.sold) + incrementAmount > Number(stockRow.pax)) {
+            await conn.rollback();
+            return res.status(400).json({
+              success: false,
+              message: `Cannot sell more than available pax. Remaining: ${
+                stockRow.pax - stockRow.sold
+              }`,
+            });
+          }
+
+          if (!fare) fare = stockRow.fare;
+          if (!pnr) pnr = stockRow.pnr;
+          if (!dot) dot = stockRow.dot;
+          if (!airline) airline = stockRow.airline;
+
+          const [updResult] = await conn.execute(
+            "UPDATE stock SET sold = sold + ? WHERE id = ?",
+            [incrementAmount, stockRow.id]
+          );
+
+          const insertSql = `
+            INSERT INTO sales (stock_id, sector, pax, dot, dotb, airline, agent, fare, pnr)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `;
+          const [insResult] = await conn.execute(insertSql, [
+            stockRow.id,
+            sector,
+            pax,
+            dot,
+            dotb,
+            airline,
+            agent,
+            fare,
+            pnr,
+          ]);
+
+          await conn.commit();
+          return res.status(200).json({
+            success: true,
+            message:
+              "Sale added and stock sold incremented by 1 (matched by sector)",
+            insertedId: insResult.insertId,
+          });
+        } else {
+          await conn.commit();
+        }
+      } catch (txErr) {
+        try {
+          await conn.rollback();
+        } catch (_) {}
+        console.error("Transaction error (sector lookup):", txErr);
+        conn.release();
+        throw txErr;
+      } finally {
+        try {
+          conn.release();
+        } catch (_) {}
       }
-    } catch (selErr) {
-      console.error("DB select by sector error:", selErr);
+    } catch (err) {
+      console.error("Sector-lookup transaction error:", err);
+      return res
+        .status(500)
+        .json({ success: false, message: "Database error" });
     }
 
-    const insertSql = `
-      INSERT INTO sales (sector, pax, dot, dotb, airline, agent, fare, pnr)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    const [result] = await pool.execute(insertSql, [
-      sector,
-      paxSold,
-      dot,
-      dotb,
-      airline,
-      agent,
-      fare,
-      pnr,
-    ]);
+    try {
+      const insertSql = `
+        INSERT INTO sales (sector, pax, dot, dotb, airline, agent, fare, pnr)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      const [result] = await pool.execute(insertSql, [
+        sector,
+        pax,
+        dot,
+        dotb,
+        airline,
+        agent,
+        fare,
+        pnr,
+      ]);
 
-    return res.status(200).json({
-      success: true,
-      message: "Sale added without stock linkage (no stock_id provided)",
-      insertedId: result.insertId,
-    });
+      return res.status(200).json({
+        success: true,
+        message: "Sale added without stock linkage",
+        insertedId: result.insertId,
+      });
+    } catch (insErr) {
+      console.error("Insert sale without stock error:", insErr);
+      return res
+        .status(500)
+        .json({ success: false, message: "Database error" });
+    }
   } catch (error) {
     console.error("Server error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -318,8 +507,7 @@ router.post("/agentpost", async (req, res) => {
     if (!agent_name || !agent_email || !agent_password) {
       return res.status(400).json({
         success: false,
-        message:
-          "All fields (agent_name, agent_email, agent_password) are required.",
+        message: "All fields are required.",
       });
     }
 
@@ -347,26 +535,13 @@ router.post("/agentpost", async (req, res) => {
       VALUES (?, ?, ?)
     `;
 
-    try {
-      const [result] = await pool.execute(sql, [name, email, hashed]);
+    const [result] = await pool.execute(sql, [name, email, hashed]);
 
-      return res.status(200).json({
-        success: true,
-        message: "Agent added successfully",
-        insertedId: result.insertId,
-      });
-    } catch (dbErr) {
-      if (dbErr && dbErr.code === "ER_DUP_ENTRY") {
-        return res.status(409).json({
-          success: false,
-          message: "This email is already registered.",
-        });
-      }
-      console.error("MySQL insert error:", dbErr);
-      return res
-        .status(500)
-        .json({ success: false, message: "Database error" });
-    }
+    return res.status(200).json({
+      success: true,
+      message: "Agent added successfully",
+      insertedId: result.insertId,
+    });
   } catch (error) {
     console.error("Server error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -451,6 +626,8 @@ router.post("/staffpost", async (req, res) => {
       });
     }
 
+    const hashedPassword = await bcrypt.hash(staff_password, 10);
+
     const sql = `
       INSERT INTO staff (staff_agent, staff_email, staff_password)
       VALUES (?, ?, ?)
@@ -459,7 +636,7 @@ router.post("/staffpost", async (req, res) => {
     const [result] = await pool.execute(sql, [
       staff_agent,
       staff_email,
-      staff_password,
+      hashedPassword,
     ]);
 
     return res.status(200).json({

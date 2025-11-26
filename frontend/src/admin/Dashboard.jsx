@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LineChart,
   Line,
@@ -18,11 +18,23 @@ function Dashboard() {
   const [filteredStockList, setFilteredStockList] = useState([]);
   const [sales, setSales] = useState([]);
   const [openIndex, setOpenIndex] = useState(null);
-
   const sectorRef = useRef(null);
   const [showSectorSuggestions, setShowSectorSuggestions] = useState(false);
   const [filteredSectors, setFilteredSectors] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [showDate, setShowDate] = useState(false);
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  function isDotExpired(dateString) {
+    if (!dateString) return false;
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return false;
+    d.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return d < today;
+  }
 
   const [stock, setStock] = useState({
     stock_id: "",
@@ -53,7 +65,8 @@ function Dashboard() {
           ? response.data.data
           : [];
         setStockList(data);
-        setFilteredStockList(data);
+        const nonExpired = data.filter((s) => !isDotExpired(s.dot));
+        setFilteredStockList(nonExpired);
       } catch (error) {
         if (axios.isCancel(error)) {
           console.log("Stock request cancelled:", error.message);
@@ -99,10 +112,21 @@ function Dashboard() {
   }, [API_URL]);
 
   const uniqueSectors = useMemo(() => {
-    const arr = (Array.isArray(stockList) ? stockList : [])
+    const sectors = (Array.isArray(stockList) ? stockList : [])
       .map((s) => (s.sector || "").toString().trim())
       .filter(Boolean);
-    return Array.from(new Set(arr));
+
+    const unique = Array.from(new Set(sectors));
+
+    return unique.filter((sector) => {
+      const stocksForSector = stockList.filter(
+        (s) =>
+          (s.sector || "").toString().trim().toLowerCase() ===
+          sector.toString().trim().toLowerCase()
+      );
+      if (stocksForSector.length === 0) return true;
+      return stocksForSector.some((s) => !isDotExpired(s.dot));
+    });
   }, [stockList]);
 
   useEffect(() => {
@@ -139,6 +163,7 @@ function Dashboard() {
       { name: "Total Airlines", value: totalAirlines },
       { name: "Total PNR", value: totalPnr },
     ]);
+    setFilteredStockList(stockList);
   }, [stockList, sales]);
 
   useEffect(() => {
@@ -226,6 +251,15 @@ function Dashboard() {
       }
 
       if (name === "dot") {
+        const selected = new Date(value);
+        if (!isNaN(selected)) {
+          const day = selected.getDate().toString().padStart(2, "0");
+          const month = selected
+            .toLocaleString("en-US", { month: "short" })
+            .toUpperCase();
+          const year = selected.getFullYear();
+          value = `${day} ${month} ${year}`;
+        }
       }
 
       return newStock;
@@ -233,22 +267,24 @@ function Dashboard() {
   };
 
   const handleSelectSector = (sector) => {
-    setStock((prev) => ({ ...prev, sector }));
-    setShowSectorSuggestions(false);
+    setStock((prev) => {
+      const found = stockList.find(
+        (s) =>
+          (s.sector || "").toString().trim().toLowerCase() ===
+          sector.toString().trim().toLowerCase()
+      );
 
-    const found = stockList.find(
-      (s) =>
-        (s.sector || "").toString().trim().toLowerCase() ===
-        sector.toString().trim().toLowerCase()
-    );
-    if (found) {
-      setStock((prev) => ({
+      const newStock = {
         ...prev,
-        stock_id: found.id,
-        dot: found.dot ?? prev.dot,
-        airline: found.airline ?? prev.airline,
-      }));
-    }
+        sector,
+        stock_id: found ? found.id : prev.stock_id,
+        airline: found?.airline ?? prev.airline,
+      };
+
+      return newStock;
+    });
+
+    setShowSectorSuggestions(false);
   };
 
   useEffect(() => {
@@ -264,28 +300,31 @@ function Dashboard() {
   const handleSearch = (e) => {
     e.preventDefault();
 
-    const sectorQuery = (stock.sector || "").toString().trim().toLowerCase();
-    const dotQuery = (stock.dot || "").toString().trim().toLowerCase();
-
-    if (!sectorQuery && !dotQuery) {
-      setFilteredStockList(stockList);
-      return;
-    }
+    const sectorQuery = (stock.sector || "").trim().toLowerCase();
+    const dotQuery = (stock.dot || "").trim().toLowerCase();
 
     const filtered = stockList.filter((s) => {
-      const sSector = (s.sector || "").toString().trim().toLowerCase();
-      const sDot = (s.dot || "").toString().trim().toLowerCase();
+      if (isDotExpired(s.dot)) return false;
 
-      if (sectorQuery && dotQuery) {
-        return sSector.includes(sectorQuery) && sDot.includes(dotQuery);
-      }
-      if (sectorQuery) return sSector.includes(sectorQuery);
-      return sDot.includes(dotQuery);
+      const sDot = (s.dot || "").toLowerCase();
+      const dotQuery = (stock.dot || "").trim().toLowerCase();
+      return sSector.includes(sectorQuery) && sDot.includes(dotQuery);
     });
 
     setFilteredStockList(filtered);
     setShowSectorSuggestions(false);
+    setCurrentPage(1);
   };
+
+  const totalPages = useMemo(() => {
+    return Math.ceil((filteredStockList?.length || 0) / itemsPerPage);
+  }, [filteredStockList]);
+
+  const paginatedList = useMemo(() => {
+    if (!Array.isArray(filteredStockList)) return [];
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredStockList.slice(start, start + itemsPerPage);
+  }, [filteredStockList, currentPage]);
 
   const totalPax = useMemo(() => {
     if (!Array.isArray(filteredStockList) || filteredStockList.length === 0)
@@ -294,7 +333,25 @@ function Dashboard() {
       const paxNum = Number(it.pax);
       return sum + (isNaN(paxNum) ? 0 : paxNum);
     }, 0);
+    setCurrentPage(1);
   }, [filteredStockList]);
+
+  function formatDot(dotValue) {
+    if (!dotValue) return "";
+    const isoMatch = /^\d{4}-\d{2}-\d{2}$/.test(String(dotValue).trim());
+    const iso = isoMatch ? String(dotValue).trim() : null;
+
+    const date = iso ? new Date(iso + "T00:00:00") : new Date(String(dotValue));
+    if (isNaN(date.getTime())) return String(dotValue);
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = date
+      .toLocaleString("en-GB", { month: "short" })
+      .toUpperCase();
+    const year = date.getFullYear();
+
+    return `${day} ${month} ${year}`;
+  }
 
   return (
     <div className="content-wrapper">
@@ -346,12 +403,17 @@ function Dashboard() {
 
             <div className="col-6 col-md-6 col-lg-2">
               <input
-                type="search"
-                placeholder="Select DOT"
+                type={showDate ? "date" : "text"}
                 className="form-control custom-form"
+                placeholder="Date of travel (DOT)"
                 name="dot"
                 value={stock.dot}
+                onFocus={() => setShowDate(true)}
+                onBlur={(e) => {
+                  if (!e.target.value) setShowDate(false);
+                }}
                 onChange={handleChange}
+                required
               />
             </div>
 
@@ -361,13 +423,22 @@ function Dashboard() {
               </button>
             </div>
 
-            {totalPax > 0 && (
+            {filteredStockList.length > 0 ? (
+              <div className="col-9 col-md-10 col-sm-10 col-lg-7 mt-2 mt-md-2 ps-0">
+                <div className="p-0 border rounded px-2 ticket-result bg-white text-start">
+                  <span className="fw-bold text-success">Result: </span>
+                  <span className="seat-contact">
+                    Total {totalPax} Seats available. Contact travel agency to
+                    book.
+                  </span>
+                </div>
+              </div>
+            ) : (
               <div className="col-9 col-md-10 col-sm-10 col-lg-7 mt-2 mt-md-2 ps-0">
                 <div className="p-0 border rounded px-2 ticket-result bg-white text-start">
                   <span className="fw-bold text-danger">Result: </span>
-                  <span className="seat-contact">
-                    Total {totalPax || 0} Seats available contact travel agency
-                    to book your seats.
+                  <span className="seat-contact text-danger">
+                    Total 0 Seats available. Contact travel agency to book.
                   </span>
                 </div>
               </div>
@@ -418,57 +489,100 @@ function Dashboard() {
           </div>
 
           <div className="col-12 col-lg-4">
-            {Array.isArray(filteredStockList) &&
-              filteredStockList.map((item, index) => (
-                <div key={index} className="size-text mb-3">
-                  <div
-                    className="flight-header size-text"
-                    onClick={() => toggleDropdown(index)}
-                  >
-                    <span>
-                      {item.sector} | {item.dot} | {item.airline}
-                    </span>
-                    <span className="caret">
-                      {openIndex === index ? "▴" : "▾"}
-                    </span>
-                  </div>
-
-                  {openIndex === index && (
-                    <div className="flight-body">
-                      <div className="d-flex justify-content-between mb-2">
-                        <span className="text-danger">
-                          <strong>PNR:</strong> {item.pnr}
+            {Array.isArray(paginatedList) && paginatedList.length > 0 ? (
+              paginatedList.map((item, idx) => {
+                const serial = (currentPage - 1) * itemsPerPage + idx + 1;
+                return (
+                  <div key={item.id ?? serial} className="size-text mb-3">
+                    <div
+                      className="flight-header size-text"
+                      onClick={() => toggleDropdown(serial)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <span>
+                        {item.sector} | {formatDot(item.dot)} | {item.airline} |{" "}
+                        <span className="text-success fw-bold">
+                          <strong className="text-success">{item.pax}</strong>{" "}
+                          Seats Left
                         </span>
-                        <span className="text-danger text-end">
-                          <strong>COST:</strong> {item.fare}/-
-                        </span>
-                      </div>
-
-                      <div className="table-responsive">
-                        <table className="table table-bordered table-sm text-center mb-0">
-                          <thead className="table-light">
-                            <tr>
-                              <th>SL. NO</th>
-                              <th>PAX</th>
-                              <th>DATE</th>
-                              <th>AGENT</th>
-                            </tr>
-                          </thead>
-
-                          <tbody>
-                            <tr>
-                              <td>1</td>
-                              <td>{item.pax}</td>
-                              <td>{item.dot}</td>
-                              <td>{item.agent || "-"}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
+                      </span>
+                      <span className="caret">
+                        {openIndex === serial ? "▴" : "▾"}
+                      </span>
                     </div>
-                  )}
+
+                    {openIndex === serial && (
+                      <div className="flight-body">
+                        <div className="d-flex justify-content-between mb-2">
+                          <span className="text-danger">
+                            <strong>PNR:</strong> {item.pnr}
+                          </span>
+                          <span className="text-danger text-end">
+                            <strong>COST:</strong> {item.fare}/-
+                          </span>
+                        </div>
+
+                        <div className="table-responsive">
+                          <table className="table table-bordered table-sm text-center mb-0">
+                            <thead className="table-light">
+                              <tr>
+                                <th>SL. NO</th>
+                                <th>PAXQ</th>
+                                <th>DATE</th>
+                                <th>AGENT</th>
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              <tr>
+                                <td>{serial}</td>
+                                <td>{item.pax}</td>
+                                <td style={{ whiteSpace: "nowrap" }}>
+                                  {formatDot(item.dot)}
+                                </td>
+                                <td>{item.agent || "-"}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="size-text mb-3">
+                <div className="p-3 rounded bg-white text-center">
+                  <p className="mb-0 fw-bold text-danger border rounded text-start px-3 py-2">
+                    No seats available for the selected date.
+                  </p>
                 </div>
-              ))}
+              </div>
+            )}
+
+            {filteredStockList && filteredStockList.length > itemsPerPage && (
+              <div className="d-flex justify-content-center gap-2 align-items-center mt-3">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-success pagination-button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  ← Prev
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-sm btn-success pagination-button"
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

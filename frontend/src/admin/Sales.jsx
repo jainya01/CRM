@@ -165,6 +165,16 @@ function Sales() {
     };
   }, [API_URL]);
 
+  function isDotExpired(dateString) {
+    if (!dateString) return false;
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return false;
+    d.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return d < today;
+  }
+
   const uniqueSectors = Array.from(
     new Set(
       [
@@ -174,61 +184,17 @@ function Sales() {
         .map((s) => (s || "").toString().trim())
         .filter(Boolean)
     )
-  );
+  ).filter((sector) => {
+    const stocksForSector = stockList.filter(
+      (s) =>
+        (s.sector || "").toString().trim().toLowerCase() ===
+        sector.toString().trim().toLowerCase()
+    );
 
-  const handleChange = (e) => {
-    const { name } = e.target;
-    let { value } = e.target;
+    if (stocksForSector.length === 0) return true;
 
-    if (name === "pax") {
-      value = value === "" ? "" : value.replace(/[^\d]/g, "");
-    }
-
-    setStock((prev) => {
-      const newStock = { ...prev, [name]: value };
-
-      if (name === "sector") {
-        const q = (value || "").toString().trim();
-        if (!q) {
-          setFilteredSectors([]);
-          setShowSectorSuggestions(false);
-        } else {
-          const matches = uniqueSectors.filter((s) =>
-            s.toLowerCase().includes(q.toLowerCase())
-          );
-          setFilteredSectors(matches.slice(0, 10));
-          setShowSectorSuggestions(true);
-        }
-
-        if (newStock.pax) validatePaxValue(newStock.pax, newStock);
-      }
-
-      if (name === "agent") {
-        const q = (value || "").toString().trim();
-        if (!q) {
-          setFilteredAgents([]);
-          setShowAgentSuggestions(false);
-        } else {
-          const matches = agents
-            .filter((a) =>
-              (a.agent_name || "")
-                .toString()
-                .toLowerCase()
-                .includes(q.toLowerCase())
-            )
-            .slice(0, 10);
-          setFilteredAgents(matches);
-          setShowAgentSuggestions(matches.length > 0);
-        }
-      }
-
-      if (name === "pax") {
-        validatePaxValue(value, newStock);
-      }
-
-      return newStock;
-    });
-  };
+    return stocksForSector.some((s) => !isDotExpired(s.dot));
+  });
 
   function validatePaxValue(paxValue, currentStock) {
     const paxNum = parseInt(paxValue, 10);
@@ -407,47 +373,20 @@ function Sales() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (
-      !stock.pax ||
-      !stock.dot ||
-      !stock.dotb ||
-      !stock.airline ||
-      !stock.agent
-    ) {
+    if (!stock.dot || !stock.dotb || !stock.airline || !stock.agent) {
       toast.error("Please fill required fields.");
       return;
     }
 
-    const paxNum = parseInt(stock.pax, 10);
-    if (isNaN(paxNum) || paxNum <= 0) {
-      toast.error("Pax must be a positive number.");
+    const rawPax = (stock.pax || "").toString().trim();
+    if (!rawPax) {
+      toast.error("Please provide Pax.");
       return;
-    }
-
-    if (stock.stock_id) {
-      const chosen = stockList.find(
-        (s) => String(s.id) === String(stock.stock_id)
-      );
-      if (!chosen) {
-        toast.error("Selected stock not found. Try reloading stocks.");
-        return;
-      }
-      const available = parseInt(chosen.pax, 10);
-      if (isNaN(available)) {
-        toast.error("Selected stock has invalid pax value.");
-        return;
-      }
-      if (paxNum > available) {
-        toast.error(
-          `Requested pax (${paxNum}) is more than available (${available}).`
-        );
-        return;
-      }
     }
 
     const payload = {
       sector: stock.sector,
-      pax: paxNum,
+      pax: rawPax,
       dot: stock.dot,
       dotb: stock.dotb,
       airline: stock.airline,
@@ -461,8 +400,7 @@ function Sales() {
       });
 
       if (response.data && response.data.success) {
-        toast.success(response.data.message || "Sales added successfully!");
-
+        toast.success("Sales added successfully!");
         setStock({
           stock_id: "",
           sector: "",
@@ -475,24 +413,57 @@ function Sales() {
         setSelectedStockId("");
       } else {
         toast.error(response.data?.message || "Something went wrong");
-        return;
       }
     } catch (err) {
       toast.error("Server connection failed.");
-      return;
     }
 
     await fetchStocks();
-    try {
-      const allSales = await axios.get(`${API_URL}/allsales`);
-      if (allSales.data && allSales.data.success) {
-        setStaff(allSales.data.data || []);
-      } else {
-        console.error("allsales returned non-success:", allSales.data);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setStock((prev) => {
+      const newStock = { ...prev, [name]: value };
+
+      if (name === "sector") {
+        const q = (value || "").trim();
+        if (!q) {
+          setFilteredSectors([]);
+          setShowSectorSuggestions(false);
+        } else {
+          const matches = uniqueSectors.filter((s) =>
+            s.toLowerCase().includes(q.toLowerCase())
+          );
+          setFilteredSectors(matches.slice(0, 10));
+          setShowSectorSuggestions(true);
+        }
+
+        if (newStock.pax) validatePaxValue(newStock.pax, newStock);
       }
-    } catch (err) {
-      console.error("GET /allsales after submit failed:", err);
-    }
+
+      if (name === "agent") {
+        const q = (value || "").trim();
+        if (!q) {
+          setFilteredAgents([]);
+          setShowAgentSuggestions(false);
+        } else {
+          const matches = agents
+            .filter((a) =>
+              (a.agent_name || "").toLowerCase().includes(q.toLowerCase())
+            )
+            .slice(0, 10);
+          setFilteredAgents(matches);
+          setShowAgentSuggestions(matches.length > 0);
+        }
+      }
+
+      if (name === "pax") {
+        validatePaxValue(value, newStock);
+      }
+
+      return newStock;
+    });
   };
 
   const [coords, setCoords] = useState(null);
@@ -516,6 +487,32 @@ function Sales() {
       window.removeEventListener("scroll", update, true);
     };
   }, [showSectorSuggestions, stock.sector]);
+
+  function formatDot(dateString) {
+    if (!dateString) return "-";
+    const dateObj = new Date(dateString);
+
+    const monthNames = [
+      "JAN",
+      "FEB",
+      "MAR",
+      "APR",
+      "MAY",
+      "JUN",
+      "JUL",
+      "AUG",
+      "SEP",
+      "OCT",
+      "NOV",
+      "DES",
+    ];
+
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const month = monthNames[dateObj.getMonth()];
+    const year = dateObj.getFullYear();
+
+    return `${day} ${month} ${year}`;
+  }
 
   return (
     <div className="content-wrapper">
@@ -586,11 +583,11 @@ function Sales() {
             )}
 
           <input
-            type="number"
+            type="text"
             className={`form-control sector-link1 ${
               stockError ? "is-invalid" : ""
             }`}
-            placeholder="Add PAX"
+            placeholder="PAX Name"
             name="pax"
             value={stock.pax}
             onChange={handleChange}
@@ -691,6 +688,7 @@ function Sales() {
               role="dialog"
               aria-modal="true"
             >
+              <h5 className="text-light mb-3 mt-0">Add New Stock</h5>
               <div className="d-flex flex-column gap-2">
                 <div className="col-12">
                   <input
@@ -707,7 +705,7 @@ function Sales() {
                 <div className="col-12">
                   <input
                     type="number"
-                    placeholder="Add PAX"
+                    placeholder="Add PAXQ"
                     className="form-control"
                     name="pax"
                     value={stocks.pax}
@@ -794,17 +792,17 @@ function Sales() {
           )}
         </form>
       </div>
+
       <div className="sales-grid grid-container">
         {groupedByHeader.map((group) => {
           const first = group.items[0] ?? {};
           const pnr = first.pnr ?? "-";
           const fare = first.fare ?? "-";
-
           const cardKey = group.key;
-
-          const headerText = `${group.sector} ${group.dot} ${group.airline} ${
-            group.agent !== "-" ? group.agent : "-"
-          }`;
+          const formattedDot = formatDot(group.dot);
+          const headerText = `${group.sector} ${formattedDot} ${
+            group.airline
+          } ${group.agent !== "-" ? group.agent : "-"}`;
 
           return (
             <div key={cardKey} className="card-wrapper">
@@ -812,7 +810,8 @@ function Sales() {
                 <div className="card-header size-text text-dark rounded-0 d-flex justify-content-between align-items-center turq-box">
                   <div
                     className="item-color1"
-                    style={{ wordBreak: "break-word" }}
+                    style={{ wordBreak: "break-word", cursor: "pointer" }}
+                    onClick={() => toggleDropdown(cardKey)}
                   >
                     {headerText}
                   </div>
@@ -834,7 +833,7 @@ function Sales() {
                       </span>
 
                       <span className="text-danger">
-                        <strong>COST:</strong> {fare}
+                        <strong>COST:</strong> {fare}/-
                       </span>
                     </div>
 
@@ -843,7 +842,7 @@ function Sales() {
                         <thead className="table-light">
                           <tr>
                             <th style={{ width: "8%" }}>SL. NO</th>
-                            <th style={{ width: "52%" }}>PAX</th>
+                            <th style={{ width: "52%" }}>PAX Name</th>
                             <th style={{ width: "20%" }}>DATE</th>
                             <th style={{ width: "30%" }}>AGENT</th>
                           </tr>
@@ -853,14 +852,14 @@ function Sales() {
                           {group.items.map((it, idx) => {
                             const paxName =
                               (it.pax ?? "").toString().trim() || "-";
-                            const dot = it.dot ?? group.dot ?? "-";
+                            const dot = formatDot(it.dot ?? group.dot ?? "-");
                             const agent = it.agent ?? group.agent ?? "-";
 
                             return (
                               <tr key={it.id ?? idx}>
                                 <td>{idx + 1}</td>
                                 <td>{paxName}</td>
-                                <td>{dot}</td>
+                                <td style={{ whiteSpace: "nowrap" }}>{dot}</td>
                                 <td>{agent !== "-" ? agent : "-"}</td>
                               </tr>
                             );
@@ -874,7 +873,6 @@ function Sales() {
             </div>
           );
         })}
-
         {groupedByHeader.length === 0 && (
           <div className="col-12 text-center text-danger">
             No sales available.

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import "../App.css";
 import Travels from "../assets/Travel.png";
 import axios from "axios";
 
-const navLinks = [
+const NAV_LINKS = [
   { path: "/admin/dashboard", label: "Dashboard", exact: true },
   { path: "/admin/stockmanagement", label: "Stock Management" },
   { path: "/admin/sales", label: "Sales" },
@@ -15,15 +15,36 @@ const navLinks = [
   { path: "/admin/settings", label: "Settings" },
 ];
 
+const resolveRole = () => {
+  const keys = ["role", "adminRole", "agentRole", "userRole"];
+  for (const k of keys) {
+    const v = localStorage.getItem(k);
+    if (v) return String(v).toLowerCase();
+  }
+  try {
+    const adminUserRaw = localStorage.getItem("adminUser");
+    if (adminUserRaw) {
+      const parsed = JSON.parse(adminUserRaw);
+      if (parsed?.role) return String(parsed.role).toLowerCase();
+    }
+  } catch (_) {}
+  try {
+    const agentUserRaw = localStorage.getItem("agentUser");
+    if (agentUserRaw) {
+      const parsed = JSON.parse(agentUserRaw);
+      if (parsed?.role) return String(parsed.role).toLowerCase();
+    }
+  } catch (_) {}
+  if (localStorage.getItem("adminToken")) return "admin";
+  if (localStorage.getItem("agentToken")) return "agent";
+  return null;
+};
+
 export default function Sidebar() {
   const API_URL = import.meta.env.VITE_API_URL;
-
   const [isOpen, setIsOpen] = useState(false);
-
-  const toggleSidebar = () => setIsOpen(!isOpen);
-  const closeSidebar = () => setIsOpen(false);
-
   const [logo, setLogo] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const mainLogo = async () => {
@@ -41,9 +62,38 @@ export default function Sidebar() {
         setLogo(null);
       }
     };
-
     mainLogo();
   }, [API_URL]);
+
+  const toggleSidebar = () => setIsOpen(!isOpen);
+  const closeSidebar = () => setIsOpen(false);
+
+  const role = resolveRole();
+
+  let visibleLinks = NAV_LINKS;
+
+  if (role === "agent") {
+    visibleLinks = NAV_LINKS.filter((l) =>
+      ["/admin/dashboard", "/admin/agent"].includes(l.path)
+    );
+  }
+
+  const handleLogout = (e) => {
+    if (e && typeof e.stopPropagation === "function") e.stopPropagation();
+    const keysToRemove = [
+      "isAuthenticated",
+      "adminToken",
+      "agentToken",
+      "adminUser",
+      "agentUser",
+      "role",
+      "adminRole",
+      "agentRole",
+    ];
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    closeSidebar();
+    navigate("/", { replace: true });
+  };
 
   return (
     <>
@@ -56,7 +106,7 @@ export default function Sidebar() {
             ☰
           </button>
 
-          <Link to="/admin/dashboard">
+          <Link to="/admin/dashboard" onClick={closeSidebar}>
             <img
               src={logo || Travels}
               alt="logo"
@@ -73,7 +123,7 @@ export default function Sidebar() {
       <div className={`mobile-sidebar d-md-none ${isOpen ? "open" : ""}`}>
         <div className="p-0">
           <div className="d-flex justify-content-between align-items-center">
-            <Link to="/admin/dashboard">
+            <Link to="/admin/dashboard" onClick={closeSidebar}>
               <img
                 src={logo || Travels}
                 alt="logo"
@@ -82,13 +132,17 @@ export default function Sidebar() {
                 style={{ width: "106px", height: "50px" }}
               />
             </Link>
-            <button className="btn-closed" onClick={closeSidebar}>
+            <button
+              className="btn-closed"
+              onClick={closeSidebar}
+              aria-label="Close sidebar"
+            >
               ❌
             </button>
           </div>
 
           <div className="list-group list-group-flush">
-            {navLinks.map((link) => (
+            {visibleLinks.map((link) => (
               <NavLink
                 key={link.path}
                 to={link.path}
@@ -103,6 +157,16 @@ export default function Sidebar() {
               </NavLink>
             ))}
           </div>
+
+          <div className="p-3">
+            <button
+              className="btn btn-danger text-start w-100"
+              onClick={handleLogout}
+              type="button"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
@@ -111,7 +175,7 @@ export default function Sidebar() {
         aria-label="Admin sidebar"
       >
         <div className="p-0">
-          <Link to="/admin/dashboard">
+          <Link to="/admin/dashboard" onClick={() => {}}>
             <img
               src={logo || Travels}
               alt="logo"
@@ -122,7 +186,7 @@ export default function Sidebar() {
           </Link>
 
           <div className="list-group rounded-0">
-            {navLinks.map((link) => (
+            {visibleLinks.map((link) => (
               <NavLink
                 key={link.path}
                 to={link.path}
@@ -135,6 +199,16 @@ export default function Sidebar() {
                 {link.label}
               </NavLink>
             ))}
+          </div>
+
+          <div className="p-3 mt-auto">
+            <button
+              className="btn btn-danger w-100 text-start"
+              onClick={handleLogout}
+              type="button"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </aside>

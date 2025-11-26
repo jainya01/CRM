@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
@@ -113,6 +113,42 @@ function StockManagement() {
     });
   })();
 
+  function formatDot(dateString) {
+    if (!dateString) return "-";
+    const dateObj = new Date(dateString);
+
+    const monthNames = [
+      "JAN",
+      "FEB",
+      "MAR",
+      "APR",
+      "MAY",
+      "JUN",
+      "JUL",
+      "AUG",
+      "SEP",
+      "OCT",
+      "NOV",
+      "DES",
+    ];
+
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const month = monthNames[dateObj.getMonth()];
+    const year = dateObj.getFullYear();
+
+    return `${day} ${month} ${year}`;
+  }
+
+  function isDotExpired(dateString) {
+    if (!dateString) return false;
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    return d < today;
+  }
+
   return (
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-between px-lg-4 px-0 mb-0 text-center gap-3 px-1 m-0 py-3 mt-0 header-color">
@@ -133,7 +169,7 @@ function StockManagement() {
           <input
             type="number"
             className="form-control sector-link1"
-            placeholder="Add PAX"
+            placeholder="Add PAXQ"
             name="pax"
             value={stock.pax}
             onChange={handleChange}
@@ -197,12 +233,11 @@ function StockManagement() {
       <div className="row p-3">
         {groupedByHeader.map((group, index) => {
           const first = group.items[0] ?? {};
+          const formattedDot = formatDot(group.dot);
+
           const pnr = first.pnr ?? "-";
           const fare = first.fare ?? "-";
-
-          const headerText = `${group.sector} ${group.dot} ${group.airline} ${
-            group.agent !== "-" ? group.agent : "-"
-          }`;
+          const isExpired = group.items.some((it) => isDotExpired(it.dot));
 
           return (
             <div
@@ -213,10 +248,43 @@ function StockManagement() {
                 <div className="card-header size-text text-dark rounded-0 d-flex justify-content-between align-items-center turq-box">
                   <div
                     className="item-color1"
-                    style={{ wordBreak: "break-word" }}
+                    style={{ wordBreak: "break-word", cursor: "pointer" }}
+                    onClick={() => toggleDropdown(index)}
                   >
-                    {headerText}
+                    {group.sector} {formattedDot} {group.airline}{" "}
+                    {group.agent !== "-" ? group.agent : "-"}{" "}
+                    {(() => {
+                      const seatsLeft = group.items.reduce(
+                        (sum, item) =>
+                          sum +
+                          ((parseInt(item.pax, 10) || 0) -
+                            (parseInt(item.sold, 10) || 0)),
+                        0
+                      );
+
+                      return (
+                        <span
+                          className={
+                            isExpired
+                              ? "text-danger fw-bold"
+                              : "text-success fw-bold"
+                          }
+                        >
+                          {seatsLeft}{" "}
+                          {isExpired ? "Seats Unsold" : "Seats Left"}
+                        </span>
+                      );
+                    })()}
+                    {isExpired && (
+                      <span
+                        className="badge bg-danger ms-2"
+                        style={{ fontSize: "0.75rem" }}
+                      >
+                        STOCK DOT EXPIRED
+                      </span>
+                    )}
                   </div>
+
                   <div
                     className="turq-caret"
                     role="button"
@@ -238,28 +306,67 @@ function StockManagement() {
                       </span>
                     </div>
 
+                    <div className="d-flex flex-row justify-content-center gap-3 align-items-center mt-0 mb-2">
+                      <span className="text-success fw-bold">
+                        Total Seats:{" "}
+                        <strong>
+                          {group.items.reduce(
+                            (sum, item) => sum + (parseInt(item.pax, 10) || 0),
+                            0
+                          )}
+                        </strong>
+                      </span>
+                      <span className="text-danger fw-bold">
+                        Seats Sold:{" "}
+                        <strong>
+                          {group.items.reduce(
+                            (sum, item) => sum + (parseInt(item.sold, 10) || 0),
+                            0
+                          )}
+                        </strong>
+                      </span>
+                      <span className="text-success fw-bold">
+                        Seats Left:{" "}
+                        <strong className="text-success">
+                          {group.items.reduce(
+                            (sum, item) =>
+                              sum +
+                              ((parseInt(item.pax, 10) || 0) -
+                                (parseInt(item.sold, 10) || 0)),
+                            0
+                          )}
+                        </strong>
+                      </span>
+                    </div>
+
                     <div className="table-responsive">
                       <table className="table table-bordered table-striped text-center table-sm mb-0">
                         <thead className="table-light">
                           <tr>
                             <th style={{ width: "8%" }}>SL. NO</th>
-                            <th style={{ width: "52%" }}>PAX</th>
+                            <th style={{ width: "52%" }}>PAXQ</th>
                             <th style={{ width: "20%" }}>DATE</th>
                             <th style={{ width: "30%" }}>AGENT</th>
                           </tr>
                         </thead>
                         <tbody>
                           {group.items.map((it, idx) => {
-                            const paxName =
-                              (it.pax ?? "").toString().trim() || "-";
-                            const dot = it.dot ?? group.dot ?? "-";
+                            const dot = formatDot(it.dot);
                             const agent = it.agent ?? group.agent ?? "-";
 
                             return (
                               <tr key={it.id ?? idx}>
                                 <td>{idx + 1}</td>
-                                <td>{paxName}</td>
-                                <td>{dot}</td>
+                                <td>
+                                  {group.items.reduce(
+                                    (sum, item) =>
+                                      sum +
+                                      ((parseInt(item.pax, 10) || 0) -
+                                        (parseInt(item.sold, 10) || 0)),
+                                    0
+                                  )}{" "}
+                                </td>
+                                <td style={{ whiteSpace: "nowrap" }}>{dot}</td>
                                 <td>{agent !== "-" ? agent : "-"}</td>
                               </tr>
                             );

@@ -230,7 +230,7 @@ function Settings() {
         <div className="row mt-4 gx-2 gy-2">
           <div className="col-lg-3 col-md-6 col-sm-6 col-12">
             <Link className="btn btn-light border w-100 text-start">
-              Change Username
+              Change username
             </Link>
           </div>
 

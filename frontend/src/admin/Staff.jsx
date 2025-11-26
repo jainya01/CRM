@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import "../App.css";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
@@ -17,6 +17,32 @@ function Staff() {
   const [dropdownIndex, setDropdownIndex] = useState(null);
   const [search, setSearch] = useState("");
 
+  const fetchStaff = async (signal) => {
+    try {
+      const response = await axios.get(`${API_URL}/allstaffs`, {
+        signal,
+      });
+
+      const agentsRaw = Array.isArray(response.data)
+        ? response.data
+        : response.data.data || [];
+
+      const formattedData = agentsRaw.map((a) => ({
+        name: a.staff_agent ?? a.agent_name ?? "",
+        email: a.staff_email ?? a.agent_email ?? "",
+        raw: a,
+      }));
+
+      setStaffList(formattedData);
+    } catch (error) {
+      if (axios.isCancel?.(error)) {
+        console.log("FetchStaff request cancelled");
+      } else {
+        console.error("❌ Error fetching agents:", error);
+      }
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setAgent((prev) => ({ ...prev, [name]: value }));
@@ -30,54 +56,27 @@ function Staff() {
       });
 
       if (response.data && response.data.success) {
-        toast.success(response.data.message || "Agent added successfully!");
+        toast.success(response.data.message || "Staff added successfully!");
         setAgent({
           staff_agent: "",
           staff_email: "",
           staff_password: "",
         });
-        fetchStaff();
+        await fetchStaff();
       } else {
         toast.error(response.data?.message || "Something went wrong");
       }
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error in handleSubmit:", err);
       toast.error("Server connection failed.");
     }
   };
 
   useEffect(() => {
     const controller = new AbortController();
+    fetchStaff(controller.signal);
 
-    const fetchStaff = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/allstaffs`, {
-          signal: controller.signal,
-        });
-
-        const agentsRaw = Array.isArray(response.data)
-          ? response.data
-          : response.data.data || [];
-
-        const formattedData = agentsRaw.map((a) => ({
-          name: a.staff_agent ?? a.agent_name ?? "",
-          email: a.staff_email ?? a.agent_email ?? "",
-          raw: a,
-        }));
-
-        setStaffList(formattedData);
-      } catch (error) {
-        if (axios.isCancel(error)) {
-          console.log("FetchStaff request cancelled");
-        } else {
-          console.error("❌ Error fetching agents:", error);
-        }
-      }
-    };
-
-    fetchStaff();
-
-    const interval = setInterval(fetchStaff, 5000);
+    const interval = setInterval(() => fetchStaff(), 1000);
 
     return () => {
       controller.abort();
@@ -105,7 +104,7 @@ function Staff() {
             <div className="col-12 col-sm-6 col-lg-3">
               <input
                 type="text"
-                placeholder="Agent staff"
+                placeholder="Add staff"
                 className="form-control"
                 name="staff_agent"
                 value={agent.staff_agent}

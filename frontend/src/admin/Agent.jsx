@@ -74,7 +74,7 @@ function Agent() {
 
     fetchStaff();
 
-    const interval = setInterval(fetchStaff, 5000);
+    const interval = setInterval(fetchStaff, 1000);
 
     return () => {
       controller.abort();
@@ -102,7 +102,7 @@ function Agent() {
             <div className="col-12 col-sm-6 col-lg-3">
               <input
                 type="text"
-                placeholder="Agent name"
+                placeholder="Add Agent"
                 className="form-control sector-link"
                 name="agent_name"
                 value={agent.agent_name}
