@@ -307,7 +307,7 @@ function StockManagement() {
                     </div>
 
                     <div className="d-flex flex-row justify-content-center gap-3 align-items-center mt-0 mb-2">
-                      <span className="text-success fw-bold">
+                      <span className="text-success fw-bold px-2">
                         Total Seats:{" "}
                         <strong>
                           {group.items.reduce(
