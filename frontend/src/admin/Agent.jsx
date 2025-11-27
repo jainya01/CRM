@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import "../App.css";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
@@ -13,6 +13,57 @@ function Agent() {
     agent_password: "",
   });
 
+  const [staffList, setStaffList] = useState([]);
+  const [dropdownIndex, setDropdownIndex] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
+
+  const [editValues, setEditValues] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+
+  const [search, setSearch] = useState("");
+  const editNameRef = useRef(null);
+
+  const fetchStaff = async (signal, { force = false } = {}) => {
+    try {
+      if (editingIndex !== null && !force) return;
+      const response = await axios.get(`${API_URL}/allagents`, { signal });
+      const agentsRaw = Array.isArray(response.data)
+        ? response.data
+        : response.data?.data || [];
+
+      const formattedData = agentsRaw.map((a) => ({
+        name: a.agent_name ?? "",
+        email: a.agent_email ?? "",
+        raw: a,
+      }));
+      setStaffList(formattedData);
+    } catch (error) {
+      if (axios.isCancel?.(error)) {
+        console.log("FetchAgents cancelled");
+      } else {
+        console.error("❌ Error fetching agents:", error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchStaff(controller.signal, { force: true });
+
+    let interval = null;
+    if (editingIndex === null) {
+      interval = setInterval(() => fetchStaff(), 5000);
+    }
+
+    return () => {
+      controller.abort();
+      if (interval) clearInterval(interval);
+    };
+  }, [API_URL, editingIndex]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setAgent((prev) => ({ ...prev, [name]: value }));
@@ -24,15 +75,12 @@ function Agent() {
       const response = await axios.post(`${API_URL}/agentpost`, agent, {
         headers: { "Content-Type": "application/json" },
       });
-      if (response.data.success) {
+      if (response.data?.success) {
         toast.success(response.data.message || "Agent added successfully!");
-        setAgent({
-          agent_name: "",
-          agent_email: "",
-          agent_password: "",
-        });
+        setAgent({ agent_name: "", agent_email: "", agent_password: "" });
+        await fetchStaff(null, { force: true });
       } else {
-        toast.error(response.data.message || "Something went wrong");
+        toast.error(response.data?.message || "Something went wrong");
       }
     } catch (err) {
       console.error("Error:", err);
@@ -40,59 +88,124 @@ function Agent() {
     }
   };
 
-  const [staffList, setStaffList] = useState([]);
-  const [dropdownIndex, setDropdownIndex] = useState(null);
-  const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const fetchStaff = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/allagents`, {
-          signal: controller.signal,
-        });
-        const agentsRaw = Array.isArray(response.data)
-          ? response.data
-          : response.data.data || [];
-
-        const formattedData = agentsRaw.map((a) => ({
-          name: a.agent_name,
-          email: a.agent_email,
-          raw: a,
-        }));
-
-        setStaffList(formattedData);
-      } catch (error) {
-        if (axios.isCancel(error)) {
-          console.log("FetchStaff request cancelled");
-        } else {
-          console.error("❌ Error fetching agents:", error);
-        }
-      }
-    };
-
-    fetchStaff();
-
-    const interval = setInterval(fetchStaff, 1000);
-
-    return () => {
-      controller.abort();
-      clearInterval(interval);
-    };
-  }, [API_URL]);
-
-  const toggleDropdown = (index) => {
-    setDropdownIndex(dropdownIndex === index ? null : index);
+  const toggleDropdown = (index, e) => {
+    if (e) e.stopPropagation();
+    if (dropdownIndex === index) {
+      setDropdownIndex(null);
+      return;
+    }
+    setEditingIndex(null);
+    setDropdownIndex(index);
   };
 
-  const displayedStaff = staffList.filter((s) => {
-    if (!search) return true;
-    const q = search.trim().toLowerCase();
-    return (
-      s.name?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q)
-    );
-  });
+  const startEdit = (index, staff, e) => {
+    if (e) e.stopPropagation();
+    if (editingIndex === index) {
+      setEditingIndex(null);
+      return;
+    }
+    setEditingIndex(index);
+    setDropdownIndex(null);
+    setEditValues({
+      name: staff.name ?? "",
+      email: staff.email ?? "",
+      password: "",
+    });
+
+    setTimeout(() => {
+      editNameRef.current?.focus();
+      const el = editNameRef.current;
+      if (el && typeof el.selectionStart === "number") {
+        const len = el.value?.length ?? 0;
+        el.setSelectionRange(len, len);
+      }
+    }, 0);
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditValues((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const cancelEdit = (e) => {
+    if (e) e.stopPropagation();
+    setEditingIndex(null);
+  };
+
+  const saveEdit = async (displayedIndex, e) => {
+    if (e) e.stopPropagation();
+
+    const displayedStaff = staffList.filter((s) => {
+      const q = search.trim().toLowerCase();
+      return (
+        !search ||
+        s.name?.toLowerCase().includes(q) ||
+        s.email?.toLowerCase().includes(q)
+      );
+    });
+
+    const agentToUpdate = displayedStaff[displayedIndex];
+    if (!agentToUpdate) {
+      toast.error("Agent not found.");
+      setEditingIndex(null);
+      return;
+    }
+
+    const agentId =
+      agentToUpdate.raw?.id ??
+      agentToUpdate.raw?.agent_id ??
+      agentToUpdate.raw?.staff_id;
+
+    try {
+      const payload = {
+        agent_name: editValues.name,
+        agent_email: editValues.email,
+        agent_password: editValues.password,
+      };
+
+      const response = await axios.put(
+        `${API_URL}/editagent/${agentId}`,
+        payload
+      );
+
+      if (response.data?.success) {
+        toast.success("Agent update successfully");
+
+        const idxInStaffList = staffList.findIndex(
+          (s) =>
+            s.raw?.id === agentId ||
+            s.raw?.agent_id === agentId ||
+            s.raw?.staff_id === agentId
+        );
+
+        if (idxInStaffList !== -1) {
+          setStaffList((prev) => {
+            const copy = [...prev];
+            copy[idxInStaffList] = {
+              ...copy[idxInStaffList],
+              name: editValues.name,
+              email: editValues.email,
+              raw: {
+                ...copy[idxInStaffList].raw,
+                agent_name: editValues.name,
+                agent_email: editValues.email,
+              },
+            };
+            return copy;
+          });
+        }
+
+        setEditingIndex(null);
+        setEditValues({ name: "", email: "", password: "" });
+        await fetchStaff(null, { force: true });
+      } else {
+        toast.error(response.data?.message || "Failed to update agent");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Server error while updating agent");
+    }
+  };
 
   return (
     <div className="content-wrapper">
@@ -114,7 +227,7 @@ function Agent() {
             <div className="col-12 col-sm-6 col-lg-3">
               <input
                 type="email"
-                placeholder="Agent email"
+                placeholder="Agent Email"
                 className="form-control sector-link"
                 name="agent_email"
                 value={agent.agent_email}
@@ -126,7 +239,7 @@ function Agent() {
             <div className="col-12 col-sm-6 col-lg-3">
               <input
                 type="password"
-                placeholder="Agent password"
+                placeholder="Agent Password"
                 className="form-control sector-link"
                 name="agent_password"
                 value={agent.agent_password}
@@ -146,7 +259,7 @@ function Agent() {
               <input
                 type="search"
                 className="form-control sector-link"
-                placeholder="Search agent"
+                placeholder="Search Agent"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -156,76 +269,202 @@ function Agent() {
       </div>
 
       <div className="row p-3">
-        {displayedStaff.length === 0 ? (
+        {staffList.filter((s) => {
+          const q = search.trim().toLowerCase();
+          return (
+            !search ||
+            s.name?.toLowerCase().includes(q) ||
+            s.email?.toLowerCase().includes(q)
+          );
+        }).length === 0 ? (
           <div className="text-center fw-medium text-danger">
             No agent available.
           </div>
         ) : (
-          displayedStaff.map((staff, index) => (
-            <div className="col-12 col-md-6 col-lg-4 mb-3" key={index}>
-              <div className="card border-0 shadow-sm">
-                <div className="card-body p-0">
-                  <div className="table-responsive">
-                    <table className="table table-bordered table-striped text-center table-sm table-fixed mb-0">
-                      <thead className="table-light">
-                        <tr>
-                          <th className="item-color text-start px-2">
-                            {staff.name}
-                          </th>
-                          <th className="text-danger text-start">
-                            {staff.email}
-                          </th>
-                          <th
-                            className="turq-caret mt-1 mb-1"
-                            role="button"
-                            onClick={() => toggleDropdown(index)}
-                          >
-                            📝
-                          </th>
-                        </tr>
-                      </thead>
+          staffList
+            .filter((s) => {
+              const q = search.trim().toLowerCase();
+              return (
+                !search ||
+                s.name?.toLowerCase().includes(q) ||
+                s.email?.toLowerCase().includes(q)
+              );
+            })
+            .map((staff, index) => {
+              const keyId =
+                staff.raw?.id ??
+                staff.raw?.agent_id ??
+                staff.raw?.staff_id ??
+                staff.email ??
+                index;
 
-                      <tbody className="text-center">
-                        {dropdownIndex === index && (
-                          <>
+              return (
+                <div className="col-12 col-md-12 col-lg-4 mb-3" key={keyId}>
+                  <div className="card border-0 shadow-sm">
+                    <div className="card-body p-0">
+                      <div className="table-responsive">
+                        <table className="table table-bordered table-striped text-center table-sm table-fixed mb-0">
+                          <thead className="table-light">
                             <tr>
-                              <td colSpan={2} className="text-danger">
-                                <Link
-                                  className="text-danger text-decoration-none"
-                                  to="/admin/dashboard"
+                              <th className="item-color text-start px-2">
+                                <span
+                                  className="text-truncate"
+                                  style={{
+                                    maxWidth: 160,
+                                    display: "inline-block",
+                                  }}
                                 >
-                                  Can View Agents
-                                </Link>
-                              </td>
-                              <td>
-                                <span className="pointer-class">✅</span>
-                                <span className="ms-2 pointer-class">❌</span>
-                              </td>
+                                  {staff.name}
+                                </span>
+                              </th>
+                              <th className="text-danger text-start">
+                                <span
+                                  className="text-truncate"
+                                  style={{
+                                    maxWidth: 160,
+                                    display: "inline-block",
+                                  }}
+                                >
+                                  {staff.email}
+                                </span>
+                              </th>
+                              <th
+                                className="mt-1 mb-1 d-flex align-items-center justify-content-center"
+                                role="button"
+                              >
+                                <span
+                                  onClick={(e) => toggleDropdown(index, e)}
+                                  style={{ cursor: "pointer", marginRight: 8 }}
+                                  title="Permissions"
+                                >
+                                  📝
+                                </span>
+                                <span
+                                  onClick={(e) => startEdit(index, staff, e)}
+                                  style={{ cursor: "pointer" }}
+                                  title="Edit"
+                                >
+                                  ✏️
+                                </span>
+                              </th>
                             </tr>
-                            <tr>
-                              <td colSpan={2} className="text-danger">
-                                <Link
-                                  className="text-danger text-decoration-none"
-                                  to="/admin/dashboard"
-                                >
-                                  Can View Fares
-                                </Link>
-                              </td>
+                          </thead>
 
-                              <td>
-                                <span className="pointer-class">✅</span>
-                                <span className="ms-2 pointer-class">❌</span>
-                              </td>
-                            </tr>
-                          </>
-                        )}
-                      </tbody>
-                    </table>
+                          <tbody className="text-center">
+                            {editingIndex === index ? (
+                              <tr>
+                                <td
+                                  colSpan={3}
+                                  className="text-start px-3 py-2"
+                                >
+                                  <div className="row g-2">
+                                    <div className="col-12 mb-0">
+                                      <input
+                                        ref={editNameRef}
+                                        type="text"
+                                        name="name"
+                                        value={editValues.name}
+                                        onChange={handleEditChange}
+                                        className="form-control form-control-sm"
+                                        placeholder="Agent Name"
+                                        onClick={(e) => e.stopPropagation()}
+                                      />
+                                    </div>
+
+                                    <div className="col-12 mb-0">
+                                      <input
+                                        type="email"
+                                        name="email"
+                                        value={editValues.email}
+                                        onChange={handleEditChange}
+                                        className="form-control form-control-sm"
+                                        placeholder="Agent Email"
+                                        onClick={(e) => e.stopPropagation()}
+                                      />
+                                    </div>
+
+                                    <div className="col-12 mb-0">
+                                      <input
+                                        type="password"
+                                        name="password"
+                                        value={editValues.password}
+                                        onChange={handleEditChange}
+                                        className="form-control form-control-sm"
+                                        placeholder="New Password"
+                                        onClick={(e) => e.stopPropagation()}
+                                      />
+                                    </div>
+
+                                    <div className="col-12 d-flex gap-2">
+                                      <button
+                                        className="btn btn-sm btn-success"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={(e) => saveEdit(index, e)}
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        className="btn btn-sm btn-secondary"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={cancelEdit}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            ) : dropdownIndex === index ? (
+                              <>
+                                <tr>
+                                  <td
+                                    colSpan={2}
+                                    className="text-danger text-start ps-3"
+                                  >
+                                    <Link
+                                      className="text-danger text-decoration-none"
+                                      to="/admin/dashboard"
+                                    >
+                                      Can View Agents
+                                    </Link>
+                                  </td>
+                                  <td>
+                                    <span className="pointer-class">✅</span>
+                                    <span className="ms-2 pointer-class">
+                                      ❌
+                                    </span>
+                                  </td>
+                                </tr>
+
+                                <tr>
+                                  <td
+                                    colSpan={2}
+                                    className="text-danger text-start ps-3"
+                                  >
+                                    <Link
+                                      className="text-danger text-decoration-none"
+                                      to="/admin/dashboard"
+                                    >
+                                      Can View Fares
+                                    </Link>
+                                  </td>
+                                  <td>
+                                    <span className="pointer-class">✅</span>
+                                    <span className="ms-2 pointer-class">
+                                      ❌
+                                    </span>
+                                  </td>
+                                </tr>
+                              </>
+                            ) : null}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          ))
+              );
+            })
         )}
       </div>
 

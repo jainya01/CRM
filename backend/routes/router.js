@@ -579,6 +579,110 @@ router.get("/allagents", async (req, res) => {
   }
 });
 
+router.put("/editagent/:id", async (req, res) => {
+  const id = req.params.id;
+  const { agent_name, agent_email, agent_password } = req.body;
+
+  if (!agent_name || !agent_email) {
+    return res.status(400).json({
+      success: false,
+      message: "Agent name and email are required",
+    });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    try {
+      let query = "UPDATE agent SET agent_name = ?, agent_email = ?";
+      const params = [agent_name, agent_email];
+
+      if (agent_password && agent_password.trim() !== "") {
+        const hashedPassword = await bcrypt.hash(agent_password, 10);
+        query += ", agent_password = ?";
+        params.push(hashedPassword);
+      }
+
+      query += " WHERE id = ?";
+      params.push(id);
+
+      const [result] = await connection.execute(query, params);
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Agent not found",
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: "Agent updated successfully",
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error("Error updating agent:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
+router.put("/editstaff/:id", async (req, res) => {
+  const id = req.params.id;
+  const { staff_agent, staff_email, staff_password } = req.body;
+
+  if (!staff_agent || !staff_email) {
+    return res.status(400).json({
+      success: false,
+      message: "Staff name and email are required",
+    });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    try {
+      let query = "UPDATE staff SET staff_agent = ?, staff_email = ?";
+      const params = [staff_agent, staff_email];
+
+      if (staff_password && staff_password.trim() !== "") {
+        const hashedPassword = await bcrypt.hash(staff_password, 10);
+        query += ", staff_password = ?";
+        params.push(hashedPassword);
+      }
+
+      query += " WHERE id = ?";
+      params.push(id);
+
+      const [result] = await connection.execute(query, params);
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Staff record not found",
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: "Staff updated successfully",
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error("Error updating staff:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
 router.delete("/agentdelete/:id", async (req, res) => {
   try {
     const id = req.params.id;
