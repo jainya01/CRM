@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import "../App.css";
 import User from "../assets/Travel.png";
 import { Link, useNavigate } from "react-router-dom";
@@ -60,13 +60,16 @@ function AgentLogin() {
     <div className="admin-login-bg d-flex justify-content-center align-items-center">
       <div className="login-card-wrapper col-12 col-md-8 col-lg-5">
         <div className="card shadow-lg border-0 rounded-2 p-4">
-          <div className="text-center mb-4">
+          <div className="text-center mb-3">
             <Link to="/">
               <img
                 src={User}
                 alt="Admin Logo"
-                className="mb-3 crm-logo"
+                className="mb-1 crm-logo"
                 loading="eager"
+                fetchpriority="high"
+                width={200}
+                height={100}
               />
             </Link>
             <h4 className="text-secondary fw-semibold">Agent Login</h4>

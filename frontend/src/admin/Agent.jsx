@@ -207,26 +207,6 @@ function Agent() {
     }
   };
 
-  // const togglePermission = async (agentId, field, value) => {
-  //   try {
-  //     const res = await axios.put(`${API_URL}/agent/toggle/${agentId}`, {
-  //       field,
-  //       value,
-  //     });
-  //     setStaffList((prev) =>
-  //       prev.map((staff) =>
-  //         staff.raw?.id === agentId ||
-  //         staff.raw?.agent_id === agentId ||
-  //         staff.raw?.staff_id === agentId
-  //           ? { ...staff, raw: { ...staff.raw, [field]: res.data.newValue } }
-  //           : staff
-  //       )
-  //     );
-  //   } catch (err) {
-  //     console.error(err);
-  //   }
-  // };
-
   const updatePermission = async (agentId, field, value) => {
     try {
       const res = await axios.put(`${API_URL}/agent/toggle/${agentId}`, {

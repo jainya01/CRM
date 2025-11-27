@@ -608,15 +608,15 @@ aside.admin-sidebar {
 }
 
 .btn-admin-login {
-  background-color: #00bfa6;
-  color: #fff;
+  background-color: #00796b;
+  color: #ffffff;
   font-weight: 500;
   border-radius: 8px;
   padding: 0.6rem 0;
 }
 
 .btn-admin-login:hover {
-  background-color: #009e8f;
+  background-color: #00695c;
   color: #fff;
 }
 
