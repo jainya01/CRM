@@ -92,6 +92,83 @@ router.post("/adminlogin", async (req, res) => {
   }
 });
 
+router.post("/postadminmail", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const sql = `
+      INSERT INTO admin (email, password)
+      VALUES (?, ?)
+    `;
+
+    const [result] = await pool.execute(sql, [email, hashedPassword]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Admin created successfully",
+      insertedId: result.insertId,
+    });
+  } catch (err) {
+    console.error("❌ Admin Insert Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
+router.delete("/admindelete/:id", async (req, res) => {
+  let { id } = req.params;
+
+  if (!id || id === "null" || isNaN(Number(id))) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid admin ID" });
+  }
+
+  id = Number(id);
+
+  try {
+    const [result] = await pool.execute("DELETE FROM admin WHERE id = ?", [id]);
+
+    if (result.affectedRows > 0) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ success: false, message: "Admin not found" });
+    }
+  } catch (err) {
+    console.error("Error deleting admin:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+router.get("/alladmindata", async (req, res) => {
+  try {
+    const sql = "SELECT email, role FROM admin ORDER BY id DESC";
+    const [rows] = await pool.execute(sql);
+    return res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows,
+    });
+  } catch (err) {
+    console.error("❌ Database error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
 router.post("/agentlogin", async (req, res) => {
   try {
     const { agent_email, agent_password } = req.body;
@@ -558,7 +635,7 @@ router.get("/allagents", async (req, res) => {
     const offset = (page - 1) * limit;
 
     const sql = `
-      SELECT id, agent_name, agent_email, created_at, updated_at
+      SELECT id, agent_name, agent_email,can_view_agents,can_view_fares, created_at, updated_at
       FROM agent
       ORDER BY id DESC
       LIMIT ${limit} OFFSET ${offset}
@@ -576,6 +653,34 @@ router.get("/allagents", async (req, res) => {
   } catch (error) {
     console.error("❌ Server error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+router.put("/agent/toggle/:id", async (req, res) => {
+  const agentId = req.params.id;
+  const { field, value } = req.body;
+
+  if (!["can_view_agents", "can_view_fares"].includes(field)) {
+    return res.status(400).json({ message: "Invalid field" });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `UPDATE agent SET ${field} = ? WHERE id = ?`,
+      [value, agentId]
+    );
+
+    if (rows.affectedRows === 0) {
+      return res.status(404).json({ message: "Agent not found" });
+    }
+
+    res.json({
+      message: "Updated successfully",
+      newValue: value,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

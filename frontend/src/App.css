@@ -741,3 +741,14 @@ aside.admin-sidebar {
     padding: 0.65rem 0.9rem;
   }
 }
+
+.email-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+@media (max-width: 576px) {
+  .email-list {
+    max-height: 300px;
+  }
+}

@@ -203,7 +203,8 @@ function Settings() {
         const response = await axios.get(`${API_URL}/allemails`, {
           signal: controller.signal,
         });
-        setEmails(response.data);
+
+        setEmails(response.data.data || []);
       } catch (error) {
         if (axios.isCancel(error)) {
           console.log("Request cancelled:", error.message);
@@ -220,6 +221,70 @@ function Settings() {
     };
   }, [API_URL]);
 
+  const [showAdminEmail, setShowAdminEmail] = useState(false);
+  const [adminEmailSubmitting, setAdminEmailSubmitting] = useState(false);
+
+  const [adminEmail, setAdminEmail] = useState([]);
+  const [adminForm, setAdminForm] = useState({ email: "", password: "" });
+  const [deletingId1, setDeletingId1] = useState(null);
+
+  const handleAdminEmailSubmit = async (ev) => {
+    ev.preventDefault();
+
+    setAdminEmailSubmitting(true);
+
+    try {
+      const payload = {
+        email: adminForm.email.trim(),
+        password: adminForm.password.trim(),
+      };
+
+      const response = await axios.post(`${API_URL}/postadminmail`, payload);
+
+      if (response.data && response.data.success) {
+        const newAdmin = {
+          id: response.data.insertedId,
+          email: payload.email,
+          role: "admin",
+        };
+
+        setAdminEmail((prev) => [newAdmin, ...prev]);
+
+        setAdminForm({ email: "", password: "" });
+        setShowAdminEmail(false);
+
+        toast.success("Admin added successfully", {
+          position: "bottom-right",
+          autoClose: 800,
+        });
+      } else {
+        toast.error(response.data?.message || "Failed to add admin");
+      }
+    } catch (error) {
+      console.error("Error adding admin:", error);
+      toast.error("Failed to add admin");
+    } finally {
+      setAdminEmailSubmitting(false);
+    }
+  };
+
+  const handleAdminChange = (ev) => {
+    const { name, value } = ev.target;
+    setAdminForm((s) => ({ ...s, [name]: value }));
+  };
+
+  useEffect(() => {
+    const allData = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/alladmindata`);
+        setAdminEmail(response.data.data || []);
+      } catch (error) {
+        console.error("error", error);
+      }
+    };
+    allData();
+  }, []);
+
   return (
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-evenly mb-0 text-center gap-3 px-1 m-0 py-3 mt-0 header-color">
@@ -228,10 +293,138 @@ function Settings() {
 
       <div className="container">
         <div className="row mt-4 gx-2 gy-2">
-          <div className="col-lg-3 col-md-6 col-sm-6 col-12">
-            <Link className="btn btn-light border w-100 text-start">
-              Change username
-            </Link>
+          <div className="col-lg-3 col-md-6 col-sm-6 col-12 d-flex flex-column">
+            <button
+              type="button"
+              className="btn btn-light border w-100 text-start mb-2 d-flex align-items-center justify-content-between"
+              onClick={() => setShowAdminEmail((s) => !s)}
+              aria-expanded={showAdminEmail}
+              aria-controls="company-email-form"
+            >
+              <span>Add New Admin</span>
+              <small className="text-muted">{showAdminEmail ? "−" : "+"}</small>
+            </button>
+
+            <div
+              id="company-email-form"
+              className={`mb-3 collapse ${showAdminEmail ? "show" : ""}`}
+            >
+              <div className="card shadow-sm rounded-1">
+                <div className="card-body p-2">
+                  <form onSubmit={handleAdminEmailSubmit}>
+                    <div className="mb-2">
+                      <label
+                        htmlFor="email-input"
+                        className="form-label small fw-bold mt-2 mb-2"
+                      >
+                        Admin Email
+                      </label>
+                      <input
+                        type="text"
+                        id="email-input"
+                        name="email"
+                        value={adminForm.email}
+                        onChange={handleAdminChange}
+                        className={`form-control form-control-sm ${
+                          emailErrors.email ? "is-invalid" : ""
+                        }`}
+                        placeholder="name@company.com"
+                        required
+                      />
+                    </div>
+
+                    <div className="mb-2">
+                      <label
+                        htmlFor="desc-input"
+                        className="form-label mb-1 small fw-bold mt-2 mb-2"
+                      >
+                        Password
+                      </label>
+                      <input
+                        type="password"
+                        className="form-control form-control-sm"
+                        placeholder="Create Password"
+                        name="password"
+                        value={adminForm.password}
+                        onChange={handleAdminChange}
+                      />
+                    </div>
+
+                    <div className="d-flex gap-2 justify-content-end">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => {
+                          setShowAdminEmail(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn btn-sm btn-success"
+                        disabled={adminEmailSubmitting}
+                      >
+                        {adminEmailSubmitting ? "Adding…" : "Add"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <div className="email-list">
+              {Array.isArray(adminEmail) && adminEmail.length > 0 ? (
+                adminEmail.map((data, key) => {
+                  const itemId = data?.id ?? `tmp-${key}`;
+                  const isRealId = data?.id !== undefined && data?.id !== null;
+
+                  const isDeleting =
+                    deletingId1 !== null &&
+                    String(deletingId1) === String(itemId);
+
+                  return (
+                    <div
+                      key={String(itemId)}
+                      className="email-row border rounded px-2 py-2 mb-2 d-flex align-items-center justify-content-between"
+                    >
+                      <div className="flex-grow-1">
+                        <div className="email-text small fw-semibold">
+                          {data.email}
+                        </div>
+                      </div>
+
+                      <div className="ms-2 d-flex align-items-center">
+                        <button
+                          type="button"
+                          className="delete-btn btn btn-sm btn-light d-flex align-items-center fw-bold justify-content-center"
+                          onClick={() => handleAdminDelete(data?.id, key)}
+                          disabled={isDeleting}
+                          aria-disabled={isDeleting}
+                          title={
+                            !isRealId
+                              ? "This item is not stored on server — will be removed locally"
+                              : "Delete admin"
+                          }
+                        >
+                          {isDeleting ? (
+                            <span
+                              className="spinner-border spinner-border-sm"
+                              role="status"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            "✖"
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-muted small">No admin found.</div>
+              )}
+            </div>
           </div>
 
           <div className="col-lg-3 col-md-6 col-sm-6 col-12">
@@ -436,13 +629,6 @@ function Settings() {
                 <div className="text-muted small">No emails found.</div>
               )}
             </div>
-
-            <style>{`
-              .email-list { max-height: 420px; overflow-y: auto; }
-              @media (max-width: 576px) {
-                .email-list { max-height: 300px; }
-              }
-            `}</style>
           </div>
         </div>
       </div>

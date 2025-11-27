@@ -356,6 +356,48 @@ function Dashboard() {
     return `${day} ${month} ${year}`;
   }
 
+  const [permissions, setPermissions] = useState({
+    can_view_agents: 0,
+    can_view_fares: 0,
+  });
+  const [role, setRole] = useState("");
+
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      const storedAgent = JSON.parse(localStorage.getItem("agentUser"));
+      const storedAdmin = JSON.parse(localStorage.getItem("adminUser"));
+
+      if (storedAdmin) {
+        setRole(storedAdmin.role);
+        setPermissions({
+          can_view_agents: 1,
+          can_view_fares: 1,
+        });
+        return;
+      }
+
+      if (!storedAgent) return;
+      setRole(storedAgent.role);
+
+      try {
+        const res = await axios.get(`${API_URL}/allagents`);
+        const agents = res.data.data;
+        const loggedInAgent = agents.find((a) => a.id === storedAgent.id);
+
+        if (loggedInAgent) {
+          setPermissions({
+            can_view_agents: loggedInAgent.can_view_agents,
+            can_view_fares: loggedInAgent.can_view_fares,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch agent permissions", err);
+      }
+    };
+
+    fetchPermissions();
+  }, []);
+
   return (
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-start mb-0 text-center header-color gap-5 px-1 m-0 py-3 mt-0">
@@ -514,7 +556,7 @@ function Dashboard() {
                       </span>
                     </div>
 
-                    {openIndex === serial && (
+                    {/* {openIndex === serial && (
                       <div className="flight-body">
                         <div className="d-flex justify-content-between mb-2">
                           <span className="text-danger">
@@ -544,6 +586,52 @@ function Dashboard() {
                                   {formatDot(item.dot)}
                                 </td>
                                 <td>{item.agent || "-"}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )} */}
+
+                    {openIndex === serial && (
+                      <div className="flight-body">
+                        <div className="d-flex justify-content-between mb-2">
+                          <span className="text-danger">
+                            <strong>PNR:</strong> {item.pnr}
+                          </span>
+                          <span className="text-danger text-end">
+                            <strong>COST:</strong>{" "}
+                            {role === "admin" ||
+                            permissions.can_view_fares === 1
+                              ? item.fare + "/-"
+                              : "***"}
+                          </span>
+                        </div>
+
+                        <div className="table-responsive">
+                          <table className="table table-bordered table-sm text-center mb-0">
+                            <thead className="table-light">
+                              <tr>
+                                <th>SL. NO</th>
+                                <th>PAXQ</th>
+                                <th>DATE</th>
+                                <th>AGENT</th>
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              <tr>
+                                <td>{serial}</td>
+                                <td>{item.pax}</td>
+                                <td style={{ whiteSpace: "nowrap" }}>
+                                  {formatDot(item.dot)}
+                                </td>
+                                <td>
+                                  {role === "admin" ||
+                                  permissions.can_view_agents === 1
+                                    ? item.agent || "-"
+                                    : "***"}
+                                </td>
                               </tr>
                             </tbody>
                           </table>

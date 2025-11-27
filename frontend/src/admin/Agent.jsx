@@ -207,6 +207,50 @@ function Agent() {
     }
   };
 
+  // const togglePermission = async (agentId, field, value) => {
+  //   try {
+  //     const res = await axios.put(`${API_URL}/agent/toggle/${agentId}`, {
+  //       field,
+  //       value,
+  //     });
+  //     setStaffList((prev) =>
+  //       prev.map((staff) =>
+  //         staff.raw?.id === agentId ||
+  //         staff.raw?.agent_id === agentId ||
+  //         staff.raw?.staff_id === agentId
+  //           ? { ...staff, raw: { ...staff.raw, [field]: res.data.newValue } }
+  //           : staff
+  //       )
+  //     );
+  //   } catch (err) {
+  //     console.error(err);
+  //   }
+  // };
+
+  const updatePermission = async (agentId, field, value) => {
+    try {
+      const res = await axios.put(`${API_URL}/agent/toggle/${agentId}`, {
+        field,
+        value,
+      });
+
+      setStaffList((prev) =>
+        prev.map((staff) =>
+          staff.raw?.id === agentId ||
+          staff.raw?.agent_id === agentId ||
+          staff.raw?.staff_id === agentId
+            ? { ...staff, raw: { ...staff.raw, [field]: value } }
+            : staff
+        )
+      );
+
+      toast.success(`Permission updated!`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update permission");
+    }
+  };
+
   return (
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-start mb-0 text-center header-color gap-5 px-1 m-0 py-3 mt-0">
@@ -429,8 +473,32 @@ function Agent() {
                                     </Link>
                                   </td>
                                   <td>
-                                    <span className="pointer-class">✅</span>
-                                    <span className="ms-2 pointer-class">
+                                    <span
+                                      className="pointer-class"
+                                      onClick={() =>
+                                        updatePermission(
+                                          staff.raw?.id ??
+                                            staff.raw?.agent_id ??
+                                            staff.raw?.staff_id,
+                                          "can_view_agents",
+                                          1
+                                        )
+                                      }
+                                    >
+                                      ✅
+                                    </span>
+                                    <span
+                                      className="ms-2 pointer-class"
+                                      onClick={() =>
+                                        updatePermission(
+                                          staff.raw?.id ??
+                                            staff.raw?.agent_id ??
+                                            staff.raw?.staff_id,
+                                          "can_view_agents",
+                                          0
+                                        )
+                                      }
+                                    >
                                       ❌
                                     </span>
                                   </td>
@@ -449,8 +517,32 @@ function Agent() {
                                     </Link>
                                   </td>
                                   <td>
-                                    <span className="pointer-class">✅</span>
-                                    <span className="ms-2 pointer-class">
+                                    <span
+                                      className="pointer-class"
+                                      onClick={() =>
+                                        updatePermission(
+                                          staff.raw?.id ??
+                                            staff.raw?.agent_id ??
+                                            staff.raw?.staff_id,
+                                          "can_view_fares",
+                                          1
+                                        )
+                                      }
+                                    >
+                                      ✅
+                                    </span>
+                                    <span
+                                      className="ms-2 pointer-class"
+                                      onClick={() =>
+                                        updatePermission(
+                                          staff.raw?.id ??
+                                            staff.raw?.agent_id ??
+                                            staff.raw?.staff_id,
+                                          "can_view_fares",
+                                          0
+                                        )
+                                      }
+                                    >
                                       ❌
                                     </span>
                                   </td>
