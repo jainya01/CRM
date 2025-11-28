@@ -227,63 +227,71 @@ function Settings() {
   const [adminForm, setAdminForm] = useState({ email: "", password: "" });
   const [deletingId1, setDeletingId1] = useState(null);
 
-  const fetchAdmins = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/alladmindata`);
-
-      const list = response.data.data || [];
-
-      const findIdInObject = (obj) => {
-        if (!obj || typeof obj !== "object") return null;
-
-        const directKeys = Object.keys(obj);
-        const keyByName = directKeys.find((k) => /(^id$)|(^id$)/i.test(k));
-        if (keyByName) {
-          return obj[keyByName];
-        }
-
-        const keyEndsId = directKeys.find((k) => /id$/i.test(k));
-        if (keyEndsId) return obj[keyEndsId];
-
-        const numericKey = directKeys.find((k) => {
-          const v = obj[k];
-          return (
-            (typeof v === "number" && Number.isFinite(v) && v > 0) ||
-            (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0)
-          );
-        });
-        if (numericKey) return obj[numericKey];
-
-        for (const k of directKeys) {
-          const v = obj[k];
-          if (v && typeof v === "object") {
-            const nested = findIdInObject(v);
-            if (nested != null) return nested;
-          }
-        }
-
-        return null;
-      };
-
-      const normalized = list.map((r, i) => {
-        const found = findIdInObject(r);
-        const normalizedId =
-          found !== null && found !== undefined ? String(found) : null;
-
-        return {
-          ...r,
-          id: normalizedId,
-        };
-      });
-
-      setAdminEmail(normalized);
-    } catch (error) {
-      console.error("error fetching admins", error);
-    }
-  };
-
   useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchAdmins = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/alladmindata`, {
+          signal: controller.signal,
+        });
+
+        const list = response.data.data || [];
+
+        const findIdInObject = (obj) => {
+          if (!obj || typeof obj !== "object") return null;
+
+          const directKeys = Object.keys(obj);
+
+          const keyByName = directKeys.find((k) => /^id$/i.test(k));
+          if (keyByName) return obj[keyByName];
+
+          const keyEndsId = directKeys.find((k) => /id$/i.test(k));
+          if (keyEndsId) return obj[keyEndsId];
+
+          const numericKey = directKeys.find((k) => {
+            const v = obj[k];
+            return (
+              (typeof v === "number" && Number.isFinite(v) && v > 0) ||
+              (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0)
+            );
+          });
+          if (numericKey) return obj[numericKey];
+
+          for (const k of directKeys) {
+            const v = obj[k];
+            if (v && typeof v === "object") {
+              const nested = findIdInObject(v);
+              if (nested != null) return nested;
+            }
+          }
+
+          return null;
+        };
+
+        const normalized = list.map((r) => {
+          const found = findIdInObject(r);
+          return {
+            ...r,
+            id: found != null ? String(found) : null,
+          };
+        });
+
+        setAdminEmail(normalized);
+      } catch (error) {
+        if (axios.isCancel(error)) {
+          console.log("Fetch aborted");
+        } else {
+          console.error("Error fetching admins", error);
+        }
+      }
+    };
+
     fetchAdmins();
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   const handleAdminEmailSubmit = async (ev) => {
@@ -637,6 +645,7 @@ function Settings() {
 
                   <div className="d-flex justify-content-between flex-wrap">
                     <button
+                      type="submit"
                       className="btn btn-success mt-2"
                       onClick={changePassword}
                     >
@@ -856,7 +865,6 @@ function Settings() {
           </div>
         </div>
       </div>
-
       <ToastContainer />
     </div>
   );

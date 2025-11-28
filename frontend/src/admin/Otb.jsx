@@ -110,7 +110,7 @@ function Otb() {
 
     allOtbData();
 
-    const interval = setInterval(allOtbData, 5000);
+    const interval = setInterval(allOtbData, 500);
 
     return () => {
       controller.abort();

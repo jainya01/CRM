@@ -39,10 +39,35 @@ function Sales() {
   const [showDate1, setShowDate1] = useState(false);
   const [showDate2, setShowDate2] = useState(false);
   const portalRef = useRef(null);
+  const portalRef1 = useRef(null);
+  const [sectorCoords, setSectorCoords] = useState(null);
+  const [agentCoords, setAgentCoords] = useState(null);
 
   let newStockAdd = (e) => {
     e.stopPropagation();
     setSales((prev) => !prev);
+  };
+
+  const updateSectorCoords = () => {
+    if (sectorRef.current) {
+      const rect = sectorRef.current.getBoundingClientRect();
+      setSectorCoords({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+  };
+
+  const updateAgentCoords = () => {
+    if (agentRef.current) {
+      const rect = agentRef.current.getBoundingClientRect();
+      setAgentCoords({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
   };
 
   useEffect(() => {
@@ -529,7 +554,10 @@ function Sales() {
                 placeholder="Search Sector"
                 name="sector"
                 value={stock.sector}
-                onChange={handleChange}
+                onChange={(e) => {
+                  handleChange(e);
+                  updateSectorCoords();
+                }}
                 autoComplete="off"
                 required
               />
@@ -537,24 +565,22 @@ function Sales() {
           </div>
 
           {showSectorSuggestions &&
-            coords &&
+            sectorCoords &&
             createPortal(
               <ul
                 className="list-group portal-suggestion-box"
                 ref={portalRef}
                 style={{
                   position: "absolute",
-                  top: coords.top,
-                  left: coords.left,
-                  width: coords.width,
+                  top: sectorCoords.top,
+                  left: sectorCoords.left,
+                  width: sectorCoords.width,
                   maxHeight: 320,
                   overflowY: "auto",
-                  overflowX: "hidden",
                   background: "#fff",
                   boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
                   borderRadius: 6,
                   zIndex: 999999,
-                  marginTop: -8,
                   padding: 0,
                   listStyle: "none",
                 }}
@@ -563,7 +589,6 @@ function Sales() {
                   filteredSectors.map((s) => (
                     <li
                       key={s}
-                      className="list-group-it1em text-dark"
                       style={{ cursor: "pointer", padding: "10px 12px" }}
                       onClick={() => {
                         handleSelectSector(s);
@@ -640,31 +665,56 @@ function Sales() {
                 placeholder="Select Agent"
                 name="agent"
                 value={stock.agent}
-                onChange={handleChange}
+                onChange={(e) => {
+                  handleChange(e);
+                  updateAgentCoords();
+                }}
                 autoComplete="off"
                 required
               />
 
-              {showAgentSuggestions && (
-                <ul className="list-group suggestion-box1">
-                  {filteredAgents.length > 0 ? (
-                    filteredAgents.map((a) => (
-                      <li
-                        key={a._id}
-                        className="list-group-item list-group-item-action1 px-3"
-                        onClick={() => handleSelectAgent(a.agent_name)}
-                        style={{ cursor: "pointer" }}
-                      >
-                        {a.agent_name}
+              {showAgentSuggestions &&
+                agentCoords &&
+                createPortal(
+                  <ul
+                    className="list-group portal-suggestion-box"
+                    ref={portalRef1}
+                    style={{
+                      position: "absolute",
+                      top: agentCoords.top,
+                      left: agentCoords.left,
+                      width: agentCoords.width,
+                      maxHeight: 320,
+                      overflowY: "auto",
+                      background: "#fff",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+                      borderRadius: 6,
+                      zIndex: 999999,
+                      padding: 0,
+                      listStyle: "none",
+                    }}
+                  >
+                    {filteredAgents.length > 0 ? (
+                      filteredAgents.map((a) => (
+                        <li
+                          key={a._id}
+                          style={{ cursor: "pointer", padding: "10px 12px" }}
+                          onClick={() => {
+                            handleSelectAgent(a.agent_name);
+                            setShowAgentSuggestions(false);
+                          }}
+                        >
+                          {a.agent_name}
+                        </li>
+                      ))
+                    ) : (
+                      <li style={{ padding: "8px 12px", color: "#777" }}>
+                        No agent found
                       </li>
-                    ))
-                  ) : (
-                    <li className="list-group-item text-muted">
-                      No agent found
-                    </li>
-                  )}
-                </ul>
-              )}
+                    )}
+                  </ul>,
+                  document.body
+                )}
             </div>
           </div>
 

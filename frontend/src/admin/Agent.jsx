@@ -26,36 +26,44 @@ function Agent() {
   const [search, setSearch] = useState("");
   const editNameRef = useRef(null);
 
-  const fetchStaff = async (signal, { force = false } = {}) => {
-    try {
-      if (editingIndex !== null && !force) return;
-      const response = await axios.get(`${API_URL}/allagents`, { signal });
-      const agentsRaw = Array.isArray(response.data)
-        ? response.data
-        : response.data?.data || [];
-
-      const formattedData = agentsRaw.map((a) => ({
-        name: a.agent_name ?? "",
-        email: a.agent_email ?? "",
-        raw: a,
-      }));
-      setStaffList(formattedData);
-    } catch (error) {
-      if (axios.isCancel?.(error)) {
-        console.log("FetchAgents cancelled");
-      } else {
-        console.error("❌ Error fetching agents:", error);
-      }
-    }
-  };
-
   useEffect(() => {
     const controller = new AbortController();
-    fetchStaff(controller.signal, { force: true });
+
+    const fetchStaff = async ({ force = false } = {}) => {
+      try {
+        if (editingIndex !== null && !force) return;
+
+        const response = await axios.get(`${API_URL}/allagents`, {
+          signal: controller.signal,
+        });
+
+        const agentsRaw = Array.isArray(response.data)
+          ? response.data
+          : response.data?.data || [];
+
+        const formattedData = agentsRaw.map((a) => ({
+          name: a.agent_name ?? "",
+          email: a.agent_email ?? "",
+          raw: a,
+        }));
+
+        setStaffList(formattedData);
+      } catch (error) {
+        if (axios.isCancel?.(error)) {
+          console.log("FetchAgents cancelled");
+        } else {
+          console.error("❌ Error fetching agents:", error);
+        }
+      }
+    };
+
+    fetchStaff({ force: true });
 
     let interval = null;
     if (editingIndex === null) {
-      interval = setInterval(() => fetchStaff(), 5000);
+      interval = setInterval(() => {
+        fetchStaff();
+      }, 5000);
     }
 
     return () => {

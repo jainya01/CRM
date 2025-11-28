@@ -1,5 +1,5 @@
 import ReactDOM from "react-dom";
-import React, {
+import {
   useState,
   useEffect,
   useRef,
@@ -91,18 +91,32 @@ function Urase() {
   };
 
   useEffect(() => {
-    const allOtbData = async () => {
+    const controller = new AbortController();
+
+    const fetchOtbData = async () => {
       try {
-        const response = await axios.get(`${API_URL}/allotbs`);
+        const response = await axios.get(`${API_URL}/allotbs`, {
+          signal: controller.signal,
+        });
+
         setStaffList(response.data?.data || response.data || []);
       } catch (error) {
-        console.error("Error fetching allotbs:", error);
+        if (axios.isCancel?.(error)) {
+          console.log("FetchAllOtbs cancelled");
+        } else {
+          console.error("Error fetching allotbs:", error);
+        }
       }
     };
 
-    allOtbData();
-    const interval = setInterval(allOtbData, 100);
-    return () => clearInterval(interval);
+    fetchOtbData();
+
+    const interval = setInterval(fetchOtbData, 500);
+
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
   }, [API_URL]);
 
   const [agent, setAgent] = useState({ agent_name: "", mail: "" });

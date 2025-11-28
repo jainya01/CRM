@@ -16,6 +16,7 @@ app.use(
     credentials: true,
   })
 );
+
 app.use("/api", router);
 app.use(express.urlencoded({ extended: true }));
 
