@@ -812,7 +812,7 @@ function Settings() {
                   return (
                     <div
                       key={itemId}
-                      className="email-row border rounded px-2 py-2 mb-2 d-flex overflow-x-scroll align-items-center justify-content-between"
+                      className="email-row border rounded px-2 py-2 mb-2 d-flex overflow-x-scroll overflow-admin align-items-center justify-content-between"
                     >
                       <div className="flex-grow-1">
                         <div className="email-text small fw-semibold">
