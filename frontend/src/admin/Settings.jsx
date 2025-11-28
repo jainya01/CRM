@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
 function Settings() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -34,7 +36,6 @@ function Settings() {
         }
       } catch (error) {
         if (axios.isCancel(error)) {
-          console.log("Request cancelled:", error.message);
         } else {
           console.error("Error fetching logo:", error);
           setLogo(null);
@@ -207,7 +208,6 @@ function Settings() {
         setEmails(response.data.data || []);
       } catch (error) {
         if (axios.isCancel(error)) {
-          console.log("Request cancelled:", error.message);
         } else {
           console.error("Error fetching emails:", error);
         }
@@ -220,8 +220,6 @@ function Settings() {
       controller.abort();
     };
   }, [API_URL]);
-
-  // 11111111111
 
   const [showAdminEmail, setShowAdminEmail] = useState(false);
   const [adminEmailSubmitting, setAdminEmailSubmitting] = useState(false);
@@ -383,14 +381,57 @@ function Settings() {
     setAdminForm((s) => ({ ...s, [name]: value }));
   };
 
+  const [adminEmailField, setAdminEmailField] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showChangePass, setShowChangePass] = useState(false);
+  const [selectedAdminId, setSelectedAdminId] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const changePassword = async (e) => {
+    e.preventDefault();
+    const toastOptions = {
+      position: "bottom-right",
+      autoClose: 1000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+    };
+
+    if (!selectedAdminId || !adminEmailField || !newPassword) {
+      toast.error("Please fill all fields", toastOptions);
+      return;
+    }
+
+    try {
+      await axios.put(`${API_URL}/editadmin/${selectedAdminId}`, {
+        newEmail: adminEmailField,
+        newPassword: newPassword,
+      });
+
+      toast.success("Admin credentials updated successfully", toastOptions);
+
+      setShowChangePass(false);
+      setSelectedAdminId("");
+      setAdminEmailField("");
+      setNewPassword("");
+
+      fetchAdmins();
+    } catch (err) {
+      console.log(err);
+      toast.error("Failed to update admin", toastOptions);
+    }
+  };
+
   return (
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-evenly mb-0 text-center gap-3 px-1 m-0 py-3 mt-0 header-color">
         <span className="py-1 settings-span">Settings</span>
       </div>
 
-      <div className="container">
-        <div className="row mt-4 gx-2 gy-2">
+      <div className="container-lg">
+        <div className="row mt-4 gx-2 gy-2 m-0">
           <div className="col-lg-3 col-md-6 col-sm-6 col-12 d-flex flex-column">
             <button
               type="button"
@@ -475,9 +516,6 @@ function Settings() {
               {Array.isArray(adminEmail) && adminEmail.length > 0 ? (
                 adminEmail.map((datas, index) => {
                   const itemsId = datas?.id ?? `tmp-${index}`;
-                  const isRealId =
-                    datas?.id !== undefined && datas?.id !== null;
-
                   const isDeleting1 =
                     deletingId1 !== null &&
                     String(deletingId1) === String(itemsId);
@@ -485,7 +523,7 @@ function Settings() {
                   return (
                     <div
                       key={itemsId}
-                      className="email-row border rounded px-2 py-2 mb-2 d-flex align-items-center justify-content-between"
+                      className="email-row border rounded px-1 py-2 mb-2 d-flex overflow-x-scroll overflow-admin align-items-center justify-content-between"
                     >
                       <div className="flex-grow-1">
                         <div className="email-text small fw-semibold">
@@ -523,9 +561,93 @@ function Settings() {
           </div>
 
           <div className="col-lg-3 col-md-6 col-sm-6 col-12">
-            <Link className="btn btn-light border w-100 text-start">
+            <Link
+              className="btn btn-light border w-100 text-start"
+              onClick={() => setShowChangePass((prev) => !prev)}
+            >
               Change Password
             </Link>
+
+            {showChangePass && (
+              <div className="p-2 mt-2 rounded-2 border-change">
+                <form>
+                  <select
+                    className="form-control"
+                    value={selectedAdminId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setAdminEmailField("");
+                      setSelectedAdminId(id);
+                      const selectedData = adminEmail.find((a) => a.id === id);
+                      if (selectedData) {
+                        setAdminEmailField(selectedData.email);
+                      }
+                    }}
+                  >
+                    <option value="">Select Admin</option>
+                    {Array.isArray(adminEmail) && adminEmail.length > 0 ? (
+                      adminEmail.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.email}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>No email admins found</option>
+                    )}
+                  </select>
+
+                  <input
+                    className="form-control mt-2"
+                    placeholder="New Email"
+                    type="email"
+                    value={adminEmailField}
+                    onChange={(e) => setAdminEmailField(e.target.value)}
+                    required
+                  />
+
+                  <div style={{ position: "relative" }}>
+                    <input
+                      className="form-control mt-2"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="New Password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      style={{ paddingRight: "40px" }}
+                    />
+
+                    <FontAwesomeIcon
+                      icon={showPassword ? faEyeSlash : faEye}
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: "absolute",
+                        right: "10px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        cursor: "pointer",
+                        color: "#555",
+                      }}
+                    />
+                  </div>
+
+                  <div className="d-flex justify-content-between flex-wrap">
+                    <button
+                      className="btn btn-success mt-2"
+                      onClick={changePassword}
+                    >
+                      Update
+                    </button>
+
+                    <button
+                      className="btn btn-secondary mt-2"
+                      onClick={() => setShowChangePass(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
 
           <div className="col-lg-3 col-md-6 col-sm-6 col-12">
@@ -690,7 +812,7 @@ function Settings() {
                   return (
                     <div
                       key={itemId}
-                      className="email-row border rounded px-2 py-2 mb-2 d-flex align-items-center justify-content-between"
+                      className="email-row border rounded px-2 py-2 mb-2 d-flex overflow-x-scroll align-items-center justify-content-between"
                     >
                       <div className="flex-grow-1">
                         <div className="email-text small fw-semibold">
@@ -727,6 +849,7 @@ function Settings() {
           </div>
         </div>
       </div>
+
       <ToastContainer />
     </div>
   );

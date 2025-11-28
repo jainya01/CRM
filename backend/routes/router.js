@@ -145,6 +145,52 @@ router.delete("/admindelete/:id", async (req, res) => {
   }
 });
 
+router.put("/editadmin/:id", async (req, res) => {
+  const { id } = req.params;
+  const { newEmail, newPassword } = req.body;
+
+  if (!newEmail || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "Email and password are required",
+    });
+  }
+
+  try {
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    const query = `
+      UPDATE admin 
+      SET email = ?, password = ?
+      WHERE id = ?
+    `;
+
+    const values = [newEmail, hashedPassword, id];
+
+    const [result] = await pool.execute(query, values);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Admin updated successfully",
+    });
+  } catch (error) {
+    console.error("UPDATE ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Database error while updating admin",
+      error: error.message,
+    });
+  }
+});
+
 router.get("/alladmindata", async (req, res) => {
   try {
     const [rows] = await pool.execute(

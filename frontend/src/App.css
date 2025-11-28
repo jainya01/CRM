@@ -242,6 +242,12 @@ aside.admin-sidebar {
   color: #222;
 }
 
+@media (min-width: 1200px) {
+  .overflow-admin {
+    overflow: hidden !important;
+  }
+}
+
 .email-divider {
   width: 1px;
   height: 1.6rem;
@@ -742,4 +748,8 @@ aside.admin-sidebar {
   .email-list {
     max-height: 300px;
   }
+}
+
+.border-change {
+  border: 1px solid #ced4da;
 }
