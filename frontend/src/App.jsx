@@ -17,7 +17,7 @@ import Sales from "./admin/Sales";
 
 function App() {
   return (
-    <BrowserRouter basename="/crm">
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/adminlogin" element={<AdminLogin />} />

@@ -1,11 +1,10 @@
 import express from "express";
 import dotenv from "dotenv";
 import multer from "multer";
-import fs from "fs/promises";
 import jwt from "jsonwebtoken";
+import { promises as fsp } from "fs";
 import bcrypt from "bcrypt";
 import path from "path";
-import { fileURLToPath } from "url";
 import pool from "../config/db.js";
 
 dotenv.config();
@@ -21,11 +20,6 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage: storage });
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// stock management
 
 router.post("/adminlogin", async (req, res) => {
   try {
@@ -153,19 +147,18 @@ router.delete("/admindelete/:id", async (req, res) => {
 
 router.get("/alladmindata", async (req, res) => {
   try {
-    const sql = "SELECT email, role FROM admin ORDER BY id DESC";
-    const [rows] = await pool.execute(sql);
-    return res.status(200).json({
+    const [rows] = await pool.execute(
+      "SELECT id, email, role FROM admin ORDER BY id DESC"
+    );
+
+    return res.json({
       success: true,
       count: rows.length,
       data: rows,
     });
   } catch (err) {
-    console.error("❌ Database error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+    console.error("Error fetching admin data:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -972,22 +965,19 @@ router.post("/change-logo", upload.single("file"), async (req, res) => {
 
     const filename = req.file.filename;
     const uploadsDir = path.join(process.cwd(), "uploads");
-    const filePath = path.join(uploadsDir, filename);
 
     const [rows] = await pool.execute(
       "SELECT * FROM logo ORDER BY id ASC LIMIT 1"
     );
-
     const existing = rows.length > 0 ? rows[0] : null;
 
     if (existing) {
       if (existing.logo && existing.logo !== filename) {
         const oldFilePath = path.join(uploadsDir, existing.logo);
         try {
-          await fs.promises.unlink(oldFilePath);
-        } catch (unlinkErr) {
-          console.warn("Could not delete old logo file:", unlinkErr);
-        }
+          await fsp.access(oldFilePath);
+          await fsp.unlink(oldFilePath);
+        } catch (unlinkErr) {}
       }
 
       await pool.execute(

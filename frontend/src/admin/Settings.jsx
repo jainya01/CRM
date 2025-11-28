@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
@@ -221,16 +221,75 @@ function Settings() {
     };
   }, [API_URL]);
 
+  // 11111111111
+
   const [showAdminEmail, setShowAdminEmail] = useState(false);
   const [adminEmailSubmitting, setAdminEmailSubmitting] = useState(false);
-
   const [adminEmail, setAdminEmail] = useState([]);
   const [adminForm, setAdminForm] = useState({ email: "", password: "" });
   const [deletingId1, setDeletingId1] = useState(null);
 
+  const fetchAdmins = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/alladmindata`);
+
+      const list = response.data.data || [];
+
+      const findIdInObject = (obj) => {
+        if (!obj || typeof obj !== "object") return null;
+
+        const directKeys = Object.keys(obj);
+        const keyByName = directKeys.find((k) => /(^id$)|(^id$)/i.test(k));
+        if (keyByName) {
+          return obj[keyByName];
+        }
+
+        const keyEndsId = directKeys.find((k) => /id$/i.test(k));
+        if (keyEndsId) return obj[keyEndsId];
+
+        const numericKey = directKeys.find((k) => {
+          const v = obj[k];
+          return (
+            (typeof v === "number" && Number.isFinite(v) && v > 0) ||
+            (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0)
+          );
+        });
+        if (numericKey) return obj[numericKey];
+
+        for (const k of directKeys) {
+          const v = obj[k];
+          if (v && typeof v === "object") {
+            const nested = findIdInObject(v);
+            if (nested != null) return nested;
+          }
+        }
+
+        return null;
+      };
+
+      const normalized = list.map((r, i) => {
+        const found = findIdInObject(r);
+        const normalizedId =
+          found !== null && found !== undefined ? String(found) : null;
+
+        return {
+          ...r,
+          id: normalizedId,
+        };
+      });
+
+      setAdminEmail(normalized);
+    } catch (error) {
+      console.error("error fetching admins", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdmins();
+  }, []);
+
   const handleAdminEmailSubmit = async (ev) => {
     ev.preventDefault();
-
     setAdminEmailSubmitting(true);
 
     try {
@@ -242,16 +301,16 @@ function Settings() {
       const response = await axios.post(`${API_URL}/postadminmail`, payload);
 
       if (response.data && response.data.success) {
-        const newAdmin = {
-          id: response.data.insertedId,
+        const temp = {
+          id: response.data.insertedId ?? null,
           email: payload.email,
           role: "admin",
         };
-
-        setAdminEmail((prev) => [newAdmin, ...prev]);
-
+        setAdminEmail((prev) => [temp, ...prev]);
         setAdminForm({ email: "", password: "" });
         setShowAdminEmail(false);
+
+        await fetchAdmins();
 
         toast.success("Admin added successfully", {
           position: "bottom-right",
@@ -268,22 +327,61 @@ function Settings() {
     }
   };
 
+  const handleAdminDelete = async (idOrNull, index = null) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this admin?"
+    );
+    if (!confirmed) return;
+
+    const itemsId = idOrNull ?? `tmp-${index}`;
+    setDeletingId1(itemsId);
+
+    try {
+      if (idOrNull == null) {
+        setAdminEmail((prev) => prev.filter((_, i) => i !== index));
+        return;
+      }
+
+      const idNum = Number(idOrNull);
+      if (Number.isNaN(idNum)) {
+        toast.error("Cannot delete: invalid admin id");
+        return;
+      }
+
+      const response = await axios.delete(`${API_URL}/admindelete/${idNum}`);
+
+      const success =
+        (response && response.status === 200) ||
+        (response.data &&
+          (response.data.success === true ||
+            response.data === "deleted" ||
+            response.data === "Email deleted" ||
+            (typeof response.data === "object" &&
+              response.data.message &&
+              /deleted/i.test(response.data.message))));
+
+      if (success) {
+        await fetchAdmins();
+        toast.success("Admin deleted successfully", {
+          position: "bottom-right",
+          autoClose: 800,
+        });
+      } else {
+        console.error("Delete API responded with:", response.data);
+        toast.error("Failed to delete admin");
+      }
+    } catch (err) {
+      console.error("Error deleting admin:", err);
+      toast.error("Error deleting admin");
+    } finally {
+      setDeletingId1(null);
+    }
+  };
+
   const handleAdminChange = (ev) => {
     const { name, value } = ev.target;
     setAdminForm((s) => ({ ...s, [name]: value }));
   };
-
-  useEffect(() => {
-    const allData = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/alladmindata`);
-        setAdminEmail(response.data.data || []);
-      } catch (error) {
-        console.error("error", error);
-      }
-    };
-    allData();
-  }, []);
 
   return (
     <div className="content-wrapper">
@@ -375,22 +473,23 @@ function Settings() {
 
             <div className="email-list">
               {Array.isArray(adminEmail) && adminEmail.length > 0 ? (
-                adminEmail.map((data, key) => {
-                  const itemId = data?.id ?? `tmp-${key}`;
-                  const isRealId = data?.id !== undefined && data?.id !== null;
+                adminEmail.map((datas, index) => {
+                  const itemsId = datas?.id ?? `tmp-${index}`;
+                  const isRealId =
+                    datas?.id !== undefined && datas?.id !== null;
 
-                  const isDeleting =
+                  const isDeleting1 =
                     deletingId1 !== null &&
-                    String(deletingId1) === String(itemId);
+                    String(deletingId1) === String(itemsId);
 
                   return (
                     <div
-                      key={String(itemId)}
+                      key={itemsId}
                       className="email-row border rounded px-2 py-2 mb-2 d-flex align-items-center justify-content-between"
                     >
                       <div className="flex-grow-1">
                         <div className="email-text small fw-semibold">
-                          {data.email}
+                          {datas.email}
                         </div>
                       </div>
 
@@ -398,16 +497,12 @@ function Settings() {
                         <button
                           type="button"
                           className="delete-btn btn btn-sm btn-light d-flex align-items-center fw-bold justify-content-center"
-                          onClick={() => handleAdminDelete(data?.id, key)}
-                          disabled={isDeleting}
-                          aria-disabled={isDeleting}
-                          title={
-                            !isRealId
-                              ? "This item is not stored on server — will be removed locally"
-                              : "Delete admin"
-                          }
+                          onClick={() => handleAdminDelete(datas.id, index)}
+                          disabled={isDeleting1}
+                          aria-disabled={isDeleting1}
+                          title="Delete admin"
                         >
-                          {isDeleting ? (
+                          {isDeleting1 ? (
                             <span
                               className="spinner-border spinner-border-sm"
                               role="status"
@@ -632,7 +727,6 @@ function Settings() {
           </div>
         </div>
       </div>
-
       <ToastContainer />
     </div>
   );

@@ -556,43 +556,6 @@ function Dashboard() {
                       </span>
                     </div>
 
-                    {/* {openIndex === serial && (
-                      <div className="flight-body">
-                        <div className="d-flex justify-content-between mb-2">
-                          <span className="text-danger">
-                            <strong>PNR:</strong> {item.pnr}
-                          </span>
-                          <span className="text-danger text-end">
-                            <strong>COST:</strong> {item.fare}/-
-                          </span>
-                        </div>
-
-                        <div className="table-responsive">
-                          <table className="table table-bordered table-sm text-center mb-0">
-                            <thead className="table-light">
-                              <tr>
-                                <th>SL. NO</th>
-                                <th>PAXQ</th>
-                                <th>DATE</th>
-                                <th>AGENT</th>
-                              </tr>
-                            </thead>
-
-                            <tbody>
-                              <tr>
-                                <td>{serial}</td>
-                                <td>{item.pax}</td>
-                                <td style={{ whiteSpace: "nowrap" }}>
-                                  {formatDot(item.dot)}
-                                </td>
-                                <td>{item.agent || "-"}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )} */}
-
                     {openIndex === serial && (
                       <div className="flight-body">
                         <div className="d-flex justify-content-between mb-2">

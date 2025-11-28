@@ -66,7 +66,6 @@ function AdminLogin() {
                 alt="Admin Logo"
                 className="mb-1 crm-logo"
                 loading="eager"
-                fetchpriority="high"
                 width={200}
                 height={100}
               />

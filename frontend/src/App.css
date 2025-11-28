@@ -5,7 +5,6 @@
 }
 
 body {
-  /* background-color: rgb(139, 182, 148); */
   letter-spacing: 1px;
   word-spacing: 2px;
   font-family: sans-serif;
@@ -439,8 +438,6 @@ aside.admin-sidebar {
   }
 }
 
-/* stock added sales page */
-
 .new-stock-add {
   width: 100%;
   max-width: 25%;
@@ -536,8 +533,6 @@ aside.admin-sidebar {
   }
 }
 
-/* dashboard css */
-
 .form-control-fields {
   border-radius: 10px;
 }
@@ -562,8 +557,6 @@ aside.admin-sidebar {
 .password-toggle-icon:hover {
   color: #5548e5;
 }
-
-/* 1111111111111 */
 
 .admin-login-bg {
   background: linear-gradient(135deg, #1e3c72, #2a5298);
@@ -625,8 +618,6 @@ aside.admin-sidebar {
   padding: 0.6rem 1rem;
   font-size: 0.95rem;
 }
-
-/* slslslslsl */
 
 .crm-welcome-bg {
   background: linear-gradient(135deg, #0b0c10, #1f2833, #45a29e);
