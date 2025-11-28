@@ -441,7 +441,9 @@ function Settings() {
               aria-controls="company-email-form"
             >
               <span>Add New Admin</span>
-              <small className="text-muted">{showAdminEmail ? "−" : "+"}</small>
+              <small className="text-muted fw-bold">
+                {showAdminEmail ? "−" : "+"}
+              </small>
             </button>
 
             <div
@@ -562,10 +564,13 @@ function Settings() {
 
           <div className="col-lg-3 col-md-6 col-sm-6 col-12">
             <Link
-              className="btn btn-light border w-100 text-start"
+              className="btn btn-light border w-100 text-start d-flex justify-content-between align-items-center"
               onClick={() => setShowChangePass((prev) => !prev)}
             >
               Change Password
+              <small className="text-muted fw-bold">
+                {showChangePass ? "−" : "+"}
+              </small>
             </Link>
 
             {showChangePass && (
@@ -713,13 +718,15 @@ function Settings() {
           <div className="col-lg-3 col-md-6 col-sm-6 col-12 d-flex flex-column">
             <button
               type="button"
-              className="btn btn-light border w-100 text-start mb-2 d-flex align-items-center justify-content-between"
+              className="btn btn-light border w-100 text-start mb-2 d-flex justify-content-between"
               onClick={() => setShowEmailForm((s) => !s)}
               aria-expanded={showEmailForm}
               aria-controls="company-email-form"
             >
               <span>Add Company Email</span>
-              <small className="text-muted">{showEmailForm ? "−" : "+"}</small>
+              <small className="text-muted fw-bold">
+                {showEmailForm ? "−" : "+"}
+              </small>
             </button>
 
             <div
