@@ -200,6 +200,40 @@ function Sales() {
     return d < today;
   }
 
+  useEffect(() => {
+    function updatePositions() {
+      if (sectorRef.current) {
+        const rect = sectorRef.current.getBoundingClientRect();
+        setSectorCoords({
+          top: rect.bottom + window.scrollY,
+          left: rect.left + window.scrollX,
+          width: rect.width,
+        });
+      }
+
+      if (agentRef.current) {
+        const rect2 = agentRef.current.getBoundingClientRect();
+        setAgentCoords({
+          top: rect2.bottom + window.scrollY,
+          left: rect2.left + window.scrollX,
+          width: rect2.width,
+        });
+      }
+    }
+
+    updatePositions();
+
+    window.addEventListener("resize", updatePositions);
+    window.addEventListener("scroll", updatePositions, true);
+    window.addEventListener("orientationchange", updatePositions);
+
+    return () => {
+      window.removeEventListener("resize", updatePositions);
+      window.removeEventListener("scroll", updatePositions, true);
+      window.removeEventListener("orientationchange", updatePositions);
+    };
+  }, [showSectorSuggestions, showAgentSuggestions, stock.sector, stock.agent]);
+
   const uniqueSectors = Array.from(
     new Set(
       [
@@ -558,6 +592,7 @@ function Sales() {
                   handleChange(e);
                   updateSectorCoords();
                 }}
+                onFocus={() => updateSectorCoords()}
                 autoComplete="off"
                 required
               />
@@ -669,6 +704,7 @@ function Sales() {
                   handleChange(e);
                   updateAgentCoords();
                 }}
+                onFocus={() => updateAgentCoords()}
                 autoComplete="off"
                 required
               />
