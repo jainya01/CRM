@@ -227,107 +227,148 @@ function Settings() {
   const [adminForm, setAdminForm] = useState({ email: "", password: "" });
   const [deletingId1, setDeletingId1] = useState(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const fetchAdmins = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/alladmindata`);
+      const list = response.data?.data || [];
 
-    const fetchAdmins = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/alladmindata`, {
-          signal: controller.signal,
+      const findIdInObject = (obj) => {
+        if (!obj || typeof obj !== "object") return null;
+        const directKeys = Object.keys(obj);
+
+        const keyByName = directKeys.find((k) => /^id$/i.test(k));
+        if (keyByName) return obj[keyByName];
+
+        const keyEndsId = directKeys.find((k) => /id$/i.test(k));
+        if (keyEndsId) return obj[keyEndsId];
+
+        const numericKey = directKeys.find((k) => {
+          const v = obj[k];
+          return (
+            (typeof v === "number" && Number.isFinite(v) && v > 0) ||
+            (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0)
+          );
         });
+        if (numericKey) return obj[numericKey];
 
-        const list = response.data.data || [];
-
-        const findIdInObject = (obj) => {
-          if (!obj || typeof obj !== "object") return null;
-
-          const directKeys = Object.keys(obj);
-
-          const keyByName = directKeys.find((k) => /^id$/i.test(k));
-          if (keyByName) return obj[keyByName];
-
-          const keyEndsId = directKeys.find((k) => /id$/i.test(k));
-          if (keyEndsId) return obj[keyEndsId];
-
-          const numericKey = directKeys.find((k) => {
-            const v = obj[k];
-            return (
-              (typeof v === "number" && Number.isFinite(v) && v > 0) ||
-              (typeof v === "string" && /^\d+$/.test(v) && Number(v) > 0)
-            );
-          });
-          if (numericKey) return obj[numericKey];
-
-          for (const k of directKeys) {
-            const v = obj[k];
-            if (v && typeof v === "object") {
-              const nested = findIdInObject(v);
-              if (nested != null) return nested;
-            }
+        for (const k of directKeys) {
+          const v = obj[k];
+          if (v && typeof v === "object") {
+            const nested = findIdInObject(v);
+            if (nested != null) return nested;
           }
-
-          return null;
-        };
-
-        const normalized = list.map((r) => {
-          const found = findIdInObject(r);
-          return {
-            ...r,
-            id: found != null ? String(found) : null,
-          };
-        });
-
-        setAdminEmail(normalized);
-      } catch (error) {
-        if (axios.isCancel(error)) {
-          console.log("Fetch aborted");
-        } else {
-          console.error("Error fetching admins", error);
         }
-      }
-    };
 
+        return null;
+      };
+
+      const normalized = list.map((r) => {
+        const found = findIdInObject(r);
+        return {
+          ...r,
+          id: found != null ? String(found) : null,
+        };
+      });
+
+      setAdminEmail(normalized);
+    } catch (error) {
+      console.error("Error fetching admins", error);
+    }
+  };
+
+  useEffect(() => {
     fetchAdmins();
+  }, [API_URL]);
 
-    return () => {
-      controller.abort();
-    };
-  }, []);
+  function formatAxiosError(err) {
+    if (!err) return "Unknown error";
+    if (err.response) {
+      const status = err.response.status;
+      const data = err.response.data;
+      const serverMsg =
+        (data && (data.message || data.error || data.msg || data.reason)) ||
+        (typeof data === "string" ? data : null);
+      return `Server ${status}${serverMsg ? `: ${serverMsg}` : ""}`;
+    }
+    if (err.request) {
+      return "No response from server (request sent)";
+    }
+    return `Client error: ${err.message}`;
+  }
 
   const handleAdminEmailSubmit = async (ev) => {
     ev.preventDefault();
     setAdminEmailSubmitting(true);
 
     try {
-      const payload = {
-        email: adminForm.email.trim(),
-        password: adminForm.password.trim(),
-      };
+      const email = (adminForm.email || "").trim();
+      const password = (adminForm.password || "").trim();
 
-      const response = await axios.post(`${API_URL}/postadminmail`, payload);
+      if (!email) {
+        toast.error("Please enter admin email");
+        setAdminEmailSubmitting(false);
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        toast.error("Enter a valid email address");
+        setAdminEmailSubmitting(false);
+        return;
+      }
+      if (!password || password.length < 6) {
+        toast.error("Password must be at least 6 characters");
+        setAdminEmailSubmitting(false);
+        return;
+      }
 
-      if (response.data && response.data.success) {
-        const temp = {
-          id: response.data.insertedId ?? null,
-          email: payload.email,
-          role: "admin",
-        };
-        setAdminEmail((prev) => [temp, ...prev]);
+      const payload = { email, password };
+
+      console.info("Adding admin — payload:", payload);
+
+      const response = await axios.post(`${API_URL}/postadminmail`, payload, {
+        headers: { Accept: "application/json" },
+        validateStatus: null,
+      });
+
+      console.info("Add admin response:", response.status, response.data);
+
+      const isSuccess =
+        response.status === 200 ||
+        response.status === 201 ||
+        (response.data &&
+          (response.data.success === true || response.data.insertedId));
+
+      if (isSuccess) {
+        await fetchAdmins();
         setAdminForm({ email: "", password: "" });
         setShowAdminEmail(false);
-
-        await fetchAdmins();
-
         toast.success("Admin added successfully", {
           position: "bottom-right",
           autoClose: 800,
         });
       } else {
-        toast.error(response.data?.message || "Failed to add admin");
+        const serverMsg =
+          response.data &&
+          (response.data.message ||
+            response.data.error ||
+            response.data.msg ||
+            response.data);
+        console.error(
+          "Add admin API returned failure:",
+          response.status,
+          response.data
+        );
+        toast.error(
+          serverMsg && typeof serverMsg === "string"
+            ? `Failed to add admin: ${serverMsg}`
+            : "Failed to add admin",
+          { position: "bottom-right", autoClose: 1600 }
+        );
       }
-    } catch (error) {
-      console.error("Error adding admin:", error);
-      toast.error("Failed to add admin");
+    } catch (err) {
+      console.error("Error adding admin:", err, err.response?.data);
+      const msg = formatAxiosError(err);
+      toast.error(msg, { position: "bottom-right", autoClose: 2000 });
     } finally {
       setAdminEmailSubmitting(false);
     }
@@ -358,7 +399,7 @@ function Settings() {
 
       const success =
         (response && response.status === 200) ||
-        (response.data &&
+        (response?.data &&
           (response.data.success === true ||
             response.data === "deleted" ||
             response.data === "Email deleted" ||
@@ -373,7 +414,7 @@ function Settings() {
           autoClose: 800,
         });
       } else {
-        console.error("Delete API responded with:", response.data);
+        console.error("Delete API responded with:", response?.data);
         toast.error("Failed to delete admin");
       }
     } catch (err) {
@@ -865,7 +906,7 @@ function Settings() {
           </div>
         </div>
       </div>
-      <ToastContainer />
+      <ToastContainer position="bottom-right" autoClose="5000" />
     </div>
   );
 }
