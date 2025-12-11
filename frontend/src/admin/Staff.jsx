@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import "../App.css";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
@@ -217,7 +217,6 @@ function Staff() {
           staff_password: "",
         });
 
-        // ⭐ FIXED LINE ⭐
         await fetchStaff({ force: true });
       } else {
         toast.error(response.data?.message || "Failed to update staff");
@@ -228,6 +227,40 @@ function Staff() {
     }
   };
 
+  const itemsPerPage = 30;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const filteredStaff = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!Array.isArray(staffList)) return [];
+    if (!q) return staffList;
+    return staffList.filter(
+      (s) =>
+        (s.staff_agent || "").toLowerCase().includes(q) ||
+        (s.staff_email || "").toLowerCase().includes(q)
+    );
+  }, [staffList, search]);
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredStaff.length / itemsPerPage));
+  }, [filteredStaff, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
+
+  const paginatedStaff = useMemo(() => {
+    if (!Array.isArray(filteredStaff) || filteredStaff.length === 0) return [];
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredStaff.slice(start, start + itemsPerPage);
+  }, [filteredStaff, currentPage, itemsPerPage]);
+
+  const paginatedStartIndex = (currentPage - 1) * itemsPerPage;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   return (
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-start mb-0 text-center header-color gap-5 px-1 m-0 py-3 mt-0">
@@ -236,7 +269,7 @@ function Staff() {
             <div className="col-12 col-sm-6 col-lg-3">
               <input
                 type="text"
-                placeholder="Add Staff"
+                placeholder="Staff Name"
                 className="form-control sector-link"
                 name="staff_agent"
                 value={agent.staff_agent}
@@ -282,7 +315,10 @@ function Staff() {
                 className="form-control sector-link"
                 placeholder="Search Staff"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </div>
@@ -290,199 +326,209 @@ function Staff() {
       </div>
 
       <div className="row p-3">
-        {staffList.filter((s) => {
-          const q = search.trim().toLowerCase();
-          return (
-            !search ||
-            s.staff_agent?.toLowerCase().includes(q) ||
-            s.staff_email?.toLowerCase().includes(q)
-          );
-        }).length === 0 ? (
+        {filteredStaff.length === 0 ? (
           <div className="text-center fw-medium text-danger">
             No staff available.
           </div>
         ) : (
-          staffList
-            .filter((s) => {
-              const q = search.trim().toLowerCase();
-              return (
-                !search ||
-                s.staff_agent?.toLowerCase().includes(q) ||
-                s.staff_email?.toLowerCase().includes(q)
-              );
-            })
-            .map((staff, index) => {
-              const keyId = staff.raw?.id ?? staff.staff_email ?? index;
+          paginatedStaff.map((staff, idx) => {
+            const displayedIndex = paginatedStartIndex + idx;
+            const keyId = staff.raw?.id ?? staff.staff_email ?? displayedIndex;
 
-              return (
-                <div className="col-12 col-md-12 col-lg-4 mb-3" key={keyId}>
-                  <div className="card border-0 shadow-sm">
-                    <div className="card-body p-0">
-                      <div className="table-responsive">
-                        <table className="table table-bordered table-striped text-center table-sm table-fixed mb-0">
-                          <thead className="table-light">
-                            <tr>
-                              <th className="item-color text-start px-2">
-                                <span
-                                  className="text-truncate"
-                                  style={{
-                                    maxWidth: 160,
-                                    display: "inline-block",
-                                  }}
-                                >
-                                  {staff.staff_agent}
-                                </span>
-                              </th>
-                              <th className="text-danger text-start">
-                                <span
-                                  className="text-truncate"
-                                  style={{
-                                    maxWidth: 160,
-                                    display: "inline-block",
-                                  }}
-                                >
-                                  {staff.staff_email}
-                                </span>
-                              </th>
-                              <th
-                                className="mt-1 mb-1 d-flex align-items-center justify-content-center"
-                                role="button"
+            return (
+              <div className="col-12 col-md-12 col-lg-4 mb-3" key={keyId}>
+                <div className="card border-0 shadow-sm">
+                  <div className="card-body p-0">
+                    <div className="table-responsive">
+                      <table className="table table-bordered table-striped text-center table-sm table-fixed mb-0">
+                        <thead className="table-light">
+                          <tr>
+                            <th className="item-color text-start px-2">
+                              <span
+                                className="text-truncate"
+                                style={{
+                                  maxWidth: 160,
+                                  display: "inline-block",
+                                }}
                               >
-                                <span
-                                  onClick={(e) => toggleDropdown(index, e)}
-                                  style={{ cursor: "pointer", marginRight: 8 }}
-                                  title="Permissions"
-                                >
-                                  📝
-                                </span>
-                                <span
-                                  onClick={(e) => startEdit(index, staff, e)}
-                                  style={{ cursor: "pointer" }}
-                                  title="Edit"
-                                >
-                                  ✏️
-                                </span>
-                              </th>
-                            </tr>
-                          </thead>
+                                {staff.staff_agent}
+                              </span>
+                            </th>
+                            <th className="text-danger text-start">
+                              <span
+                                className="text-truncate"
+                                style={{
+                                  maxWidth: 160,
+                                  display: "inline-block",
+                                }}
+                              >
+                                {staff.staff_email}
+                              </span>
+                            </th>
+                            <th
+                              className="mt-1 mb-1 d-flex align-items-center justify-content-center"
+                              role="button"
+                            >
+                              <span
+                                onClick={(e) =>
+                                  toggleDropdown(displayedIndex, e)
+                                }
+                                style={{ cursor: "pointer", marginRight: 8 }}
+                                title="Permissions"
+                              >
+                                📝
+                              </span>
+                              <span
+                                onClick={(e) =>
+                                  startEdit(displayedIndex, staff, e)
+                                }
+                                style={{ cursor: "pointer" }}
+                                title="Edit"
+                              >
+                                ✏️
+                              </span>
+                            </th>
+                          </tr>
+                        </thead>
 
-                          <tbody className="text-center">
-                            {editingIndex === index ? (
+                        <tbody className="text-center">
+                          {editingIndex === displayedIndex ? (
+                            <tr>
+                              <td colSpan={3} className="text-start px-3 py-2">
+                                <div className="row g-2">
+                                  <div className="col-12 mb-0">
+                                    <input
+                                      ref={editNameRef}
+                                      type="text"
+                                      name="staff_agent"
+                                      value={editValues.staff_agent}
+                                      onChange={handleEditChange}
+                                      className="form-control form-control-sm"
+                                      placeholder="Agent Name"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </div>
+
+                                  <div className="col-12 mb-0">
+                                    <input
+                                      type="email"
+                                      name="staff_email"
+                                      value={editValues.staff_email}
+                                      onChange={handleEditChange}
+                                      className="form-control form-control-sm"
+                                      placeholder="Agent Email"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </div>
+
+                                  <div className="col-12 mb-0">
+                                    <input
+                                      type="password"
+                                      name="staff_password"
+                                      value={editValues.staff_password}
+                                      onChange={handleEditChange}
+                                      className="form-control form-control-sm"
+                                      placeholder="New Password"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </div>
+
+                                  <div className="col-12 d-flex gap-2">
+                                    <button
+                                      className="btn btn-sm btn-success"
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={(e) =>
+                                        saveEdit(displayedIndex, e)
+                                      }
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-secondary"
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={cancelEdit}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : dropdownIndex === displayedIndex ? (
+                            <>
                               <tr>
                                 <td
-                                  colSpan={3}
-                                  className="text-start px-3 py-2"
+                                  colSpan={2}
+                                  className="text-danger text-start ps-3"
                                 >
-                                  <div className="row g-2">
-                                    <div className="col-12 mb-0">
-                                      <input
-                                        ref={editNameRef}
-                                        type="text"
-                                        name="staff_agent"
-                                        value={editValues.staff_agent}
-                                        onChange={handleEditChange}
-                                        className="form-control form-control-sm"
-                                        placeholder="Agent Name"
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
-                                    </div>
-
-                                    <div className="col-12 mb-0">
-                                      <input
-                                        type="email"
-                                        name="staff_email"
-                                        value={editValues.staff_email}
-                                        onChange={handleEditChange}
-                                        className="form-control form-control-sm"
-                                        placeholder="Agent Email"
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
-                                    </div>
-
-                                    <div className="col-12 mb-0">
-                                      <input
-                                        type="password"
-                                        name="staff_password"
-                                        value={editValues.staff_password}
-                                        onChange={handleEditChange}
-                                        className="form-control form-control-sm"
-                                        placeholder="New Password"
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
-                                    </div>
-
-                                    <div className="col-12 d-flex gap-2">
-                                      <button
-                                        className="btn btn-sm btn-success"
-                                        onMouseDown={(e) => e.preventDefault()}
-                                        onClick={(e) => saveEdit(index, e)}
-                                      >
-                                        Save
-                                      </button>
-                                      <button
-                                        className="btn btn-sm btn-secondary"
-                                        onMouseDown={(e) => e.preventDefault()}
-                                        onClick={cancelEdit}
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
+                                  <Link
+                                    className="text-danger text-decoration-none"
+                                    to="/admin/dashboard"
+                                  >
+                                    Can View Agents
+                                  </Link>
+                                </td>
+                                <td>
+                                  <span className="pointer-class">✅</span>
+                                  <span className="ms-2 pointer-class">❌</span>
                                 </td>
                               </tr>
-                            ) : dropdownIndex === index ? (
-                              <>
-                                <tr>
-                                  <td
-                                    colSpan={2}
-                                    className="text-danger text-start ps-3"
-                                  >
-                                    <Link
-                                      className="text-danger text-decoration-none"
-                                      to="/admin/dashboard"
-                                    >
-                                      Can View Agents
-                                    </Link>
-                                  </td>
-                                  <td>
-                                    <span className="pointer-class">✅</span>
-                                    <span className="ms-2 pointer-class">
-                                      ❌
-                                    </span>
-                                  </td>
-                                </tr>
 
-                                <tr>
-                                  <td
-                                    colSpan={2}
-                                    className="text-danger text-start ps-3"
+                              <tr>
+                                <td
+                                  colSpan={2}
+                                  className="text-danger text-start ps-3"
+                                >
+                                  <Link
+                                    className="text-danger text-decoration-none"
+                                    to="/admin/dashboard"
                                   >
-                                    <Link
-                                      className="text-danger text-decoration-none"
-                                      to="/admin/dashboard"
-                                    >
-                                      Can View Fares
-                                    </Link>
-                                  </td>
-                                  <td>
-                                    <span className="pointer-class">✅</span>
-                                    <span className="ms-2 pointer-class">
-                                      ❌
-                                    </span>
-                                  </td>
-                                </tr>
-                              </>
-                            ) : null}
-                          </tbody>
-                        </table>
-                      </div>
+                                    Can View Fares
+                                  </Link>
+                                </td>
+                                <td>
+                                  <span className="pointer-class">✅</span>
+                                  <span className="ms-2 pointer-class">❌</span>
+                                </td>
+                              </tr>
+                            </>
+                          ) : null}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
-              );
-            })
+              </div>
+            );
+          })
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="d-flex justify-content-center gap-2 align-items-center mt-3">
+          <button
+            type="button"
+            className="btn btn-sm btn-success"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+
+          <span className="px-2 small text-muted">
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-success"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       <ToastContainer position="bottom-right" autoClose={1000} />
     </div>

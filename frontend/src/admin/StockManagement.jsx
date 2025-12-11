@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
@@ -129,7 +129,7 @@ function StockManagement() {
       "SEP",
       "OCT",
       "NOV",
-      "DES",
+      "DEC",
     ];
 
     const day = String(dateObj.getDate()).padStart(2, "0");
@@ -148,6 +148,17 @@ function StockManagement() {
     d.setHours(0, 0, 0, 0);
     return d < today;
   }
+
+  const itemsPerPage = 24;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const paginatedGroups = useMemo(() => {
+    if (!Array.isArray(groupedByHeader)) return [];
+    const start = (currentPage - 1) * itemsPerPage;
+    return groupedByHeader.slice(start, start + itemsPerPage);
+  }, [groupedByHeader, currentPage]);
+
+  const totalPages = Math.ceil((groupedByHeader?.length || 0) / itemsPerPage);
 
   return (
     <div className="content-wrapper">
@@ -220,18 +231,24 @@ function StockManagement() {
             required
           />
 
-          <button className="btn btn-light sector-link" type="submit">
+          <button
+            className="btn btn-light sector-link submit-btn"
+            type="submit"
+          >
             Submit
           </button>
 
-          <Link className="btn btn-light sector-link" to="/admin/sales">
+          <Link
+            className="btn btn-light sector-link sales-btn"
+            to="/admin/sales"
+          >
             Add Sales
           </Link>
         </form>
       </div>
 
       <div className="row p-3">
-        {groupedByHeader.map((group, index) => {
+        {paginatedGroups.map((group, index) => {
           const first = group.items[0] ?? {};
           const formattedDot = formatDot(group.dot);
 
@@ -307,7 +324,7 @@ function StockManagement() {
                     </div>
 
                     <div className="d-flex flex-row justify-content-center gap-3 align-items-center mt-0 mb-2">
-                      <span className="text-success fw-bold px-2">
+                      <span className="text-success1 fw-bold px-2">
                         Total Seats:{" "}
                         <strong>
                           {group.items.reduce(
@@ -316,7 +333,7 @@ function StockManagement() {
                           )}
                         </strong>
                       </span>
-                      <span className="text-danger fw-bold">
+                      <span className="text-success fw-bold">
                         Seats Sold:{" "}
                         <strong>
                           {group.items.reduce(
@@ -325,9 +342,9 @@ function StockManagement() {
                           )}
                         </strong>
                       </span>
-                      <span className="text-success fw-bold pe-1">
+                      <span className="text-danger fw-bold pe-1">
                         Seats Left:{" "}
-                        <strong className="text-success">
+                        <strong className="text-danger">
                           {group.items.reduce(
                             (sum, item) =>
                               sum +
@@ -343,10 +360,10 @@ function StockManagement() {
                       <table className="table table-bordered table-striped text-center table-sm mb-0">
                         <thead className="table-light">
                           <tr>
-                            <th style={{ width: "8%" }}>SL. NO</th>
-                            <th style={{ width: "52%" }}>PAXQ</th>
-                            <th style={{ width: "20%" }}>DATE</th>
-                            <th style={{ width: "30%" }}>AGENT</th>
+                            <th style={{ width: "20%" }}>SL. NO</th>
+                            <th style={{ width: "25%" }}>PAXQ</th>
+                            <th style={{ width: "30%" }}>DATE</th>
+                            <th style={{ width: "25%" }}>AGENT</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -387,6 +404,32 @@ function StockManagement() {
           </div>
         )}
       </div>
+
+      {groupedByHeader && groupedByHeader.length > itemsPerPage && (
+        <div className="d-flex justify-content-center gap-2 align-items-center mt-3">
+          <button
+            type="button"
+            className="btn btn-sm btn-success"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+
+          <span className="px-2 small text-muted">
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-success"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       <ToastContainer position="bottom-right" autoClose={1000} />
     </div>

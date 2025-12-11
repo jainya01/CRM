@@ -5,6 +5,7 @@ import {
   useRef,
   useLayoutEffect,
   useCallback,
+  useMemo,
 } from "react";
 import "../App.css";
 import axios from "axios";
@@ -32,11 +33,12 @@ function SuggestionsPortal({
       width: `${width}px`,
       zIndex: 30000,
       maxHeight: `${maxHeight}px`,
+      overflowY: "auto",
       backgroundColor: "rgb(139, 182, 148)",
       boxShadow: "0 6px 18px rgba(0,0,0,0.12)",
       borderRadius: 0,
     });
-  }, [parentRect, items.length, maxHeight]);
+  }, [parentRect, items, maxHeight]);
 
   useEffect(() => {
     if (!parentRect) return;
@@ -86,9 +88,9 @@ function Otb() {
   const [staffList, setStaffList] = useState([]);
   const [openIndex, setOpenIndex] = useState(null);
 
-  const toggleDropdown = (index) => {
-    setOpenIndex(openIndex === index ? null : index);
-  };
+  const toggleDropdown = useCallback((index) => {
+    setOpenIndex((prev) => (prev === index ? null : index));
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -130,7 +132,7 @@ function Otb() {
   useEffect(() => {
     const controller = new AbortController();
 
-    const allOtbData = async () => {
+    const allAgents = async () => {
       try {
         const response = await axios.get(`${API_URL}/allagents`, {
           signal: controller.signal,
@@ -145,7 +147,7 @@ function Otb() {
       }
     };
 
-    allOtbData();
+    allAgents();
 
     return () => {
       controller.abort();
@@ -247,6 +249,10 @@ function Otb() {
       if (res?.data?.success) {
         toast.success(res.data.message || "OTB send successfully!");
         setAgent({ agent_name: "", mail: "" });
+        try {
+          const fresh = await axios.get(`${API_URL}/allotbs`);
+          setStaffList(fresh.data?.data || fresh.data || []);
+        } catch (err) {}
       } else {
         toast.error(res?.data?.message || "Failed to save data.");
       }
@@ -283,6 +289,24 @@ function Otb() {
     }
   };
 
+  const itemsPerPage = 30;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = useMemo(() => {
+    const length = Array.isArray(staffList) ? staffList.length : 0;
+    return Math.max(1, Math.ceil(length / itemsPerPage));
+  }, [staffList, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
+
+  const paginatedGroups = useMemo(() => {
+    if (!Array.isArray(staffList) || staffList.length === 0) return [];
+    const start = (currentPage - 1) * itemsPerPage;
+    return staffList.slice(start, start + itemsPerPage);
+  }, [staffList, currentPage, itemsPerPage]);
+
   return (
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-start mb-0 text-center header-color gap-5 px-1 m-0 py-3 mt-0">
@@ -293,7 +317,7 @@ function Otb() {
                 <input
                   ref={inputRef}
                   type="search"
-                  placeholder="Select Agent"
+                  placeholder="Search Agent"
                   className="form-control sector-link"
                   value={agent.agent_name}
                   onChange={handleAgentNameChange}
@@ -312,7 +336,7 @@ function Otb() {
             <div className="col-md-4 col-6 col-sm-6">
               <input
                 type="email"
-                placeholder="From mail"
+                placeholder="Agent Email"
                 className="form-control sector-link"
                 value={agent.mail}
                 onChange={handleMailChange}
@@ -342,7 +366,7 @@ function Otb() {
       />
 
       <div className="row p-3">
-        {!staffList || staffList.length === 0 ? (
+        {paginatedGroups.length === 0 ? (
           <div className="col-12">
             <div className="card-bod1y py-4 text-center text-muted">
               <div className="mb-2 text-danger text-center">
@@ -351,60 +375,92 @@ function Otb() {
             </div>
           </div>
         ) : (
-          staffList.map((agent, index) => (
-            <div
-              className="col-12 col-md-6 col-lg-4 mb-3"
-              key={agent.id ?? index}
-            >
-              <div className="card border-0 shadow-sm">
-                <div className="card-body p-0">
-                  <div className="table-responsive">
-                    <table className="table table-bordered text-center table-sm mb-0">
-                      <thead className="table-light">
-                        <tr>
-                          <th
-                            colSpan={4}
-                            className="item-color text-start px-2 py-2 size-text"
-                          >
-                            You have received an email from{" "}
-                            {agent.agent_name || "Unknown Agent"}
-                            <div
-                              className="turq-caret float-end"
-                              onClick={() => toggleDropdown(index)}
+          paginatedGroups.map((agentItem, idx) => {
+            const globalIndex = (currentPage - 1) * itemsPerPage + idx;
+
+            return (
+              <div
+                className="col-12 col-md-6 col-lg-4 mb-3"
+                key={agentItem?.id ?? globalIndex}
+              >
+                <div className="card border-0 shadow-sm">
+                  <div className="card-body p-0">
+                    <div className="table-responsive">
+                      <table className="table table-bordered text-center table-sm mb-0">
+                        <thead className="table-light">
+                          <tr>
+                            <th
+                              colSpan={4}
+                              className="item-color text-start px-2 py-2 size-text"
+                              onClick={() => toggleDropdown(globalIndex)}
                               style={{ cursor: "pointer" }}
                             >
-                              {openIndex === index ? "▴" : "▾"}
-                            </div>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {openIndex === index && (
-                          <tr>
-                            <td>{agent.agent_name || "N/A"}</td>
-                            <td>{agent.mail || "No Email"}</td>
-                            <td>
-                              <span className="pointer-class text-success">
-                                ✅
-                              </span>
-                              <span
-                                className="ms-2 pointer-class text-danger"
-                                onClick={() => deleteData(agent.id)}
+                              You have sent an email by{" "}
+                              {agentItem.agent_name || "Unknown Agent"}
+                              <div
+                                className="turq-caret float-end"
+                                style={{ cursor: "pointer" }}
                               >
-                                ❌
-                              </span>
-                            </td>
+                                {openIndex === globalIndex ? "▴" : "▾"}
+                              </div>
+                            </th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {openIndex === globalIndex && (
+                            <tr>
+                              <td>{agentItem.agent_name || "N/A"}</td>
+                              <td>{agentItem.mail || "No Email"}</td>
+                              <td>
+                                <span className="pointer-class text-success">
+                                  ✅
+                                </span>
+                                <span
+                                  className="ms-2 pointer-class text-danger"
+                                  onClick={() => deleteData(agentItem.id)}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  ❌
+                                </span>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="d-flex justify-content-center gap-2 align-items-center mt-3">
+          <button
+            type="button"
+            className="btn btn-sm btn-success"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+
+          <span className="px-2 small text-muted">
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-success"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       <ToastContainer position="bottom-right" autoClose={1000} />
     </div>

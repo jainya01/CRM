@@ -23,13 +23,26 @@ function Dashboard() {
   const [filteredSectors, setFilteredSectors] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [showDate, setShowDate] = useState(false);
-  const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   function isDotExpired(dateString) {
     if (!dateString) return false;
-    const d = new Date(dateString);
+
+    const isoMatch = /^\d{4}-\d{2}-\d{2}$/.test(String(dateString).trim());
+    let d;
+    if (isoMatch) {
+      const parts = String(dateString).trim().split("-");
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      d = new Date(y, m, day);
+    } else {
+      d = new Date(String(dateString));
+    }
+
     if (isNaN(d.getTime())) return false;
+
     d.setHours(0, 0, 0, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -55,21 +68,46 @@ function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
+    let mounted = true;
+
+    const getToday = () => {
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    };
+
+    const parseLocalDate = (ymd) => {
+      if (!ymd) return null;
+      const p = ymd.split("-");
+      if (p.length !== 3) return null;
+      return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+    };
+
+    const isDotExpiredLocal = (dot) => {
+      const date = parseLocalDate(dot);
+      if (!date) return false;
+      return date < getToday();
+    };
 
     const stockData = async () => {
       try {
         const response = await axios.get(`${API_URL}/allstocks`, {
           signal: controller.signal,
         });
+
         const data = Array.isArray(response.data?.data)
           ? response.data.data
           : [];
+
+        if (!mounted) return;
+
         setStockList(data);
-        const nonExpired = data.filter((s) => !isDotExpired(s.dot));
+
+        const nonExpired = data.filter((item) => !isDotExpiredLocal(item.dot));
+
         setFilteredStockList(nonExpired);
       } catch (error) {
         if (axios.isCancel(error)) {
-          console.log("Stock request cancelled:", error.message);
+          console.log("Stock request cancelled");
         } else {
           console.error("Error fetching stocks", error);
           setStockList([]);
@@ -81,6 +119,7 @@ function Dashboard() {
     stockData();
 
     return () => {
+      mounted = false;
       controller.abort();
     };
   }, [API_URL]);
@@ -163,7 +202,6 @@ function Dashboard() {
       { name: "Total Airlines", value: totalAirlines },
       { name: "Total PNR", value: totalPnr },
     ]);
-    setFilteredStockList(stockList);
   }, [stockList, sales]);
 
   useEffect(() => {
@@ -336,7 +374,6 @@ function Dashboard() {
       const paxNum = Number(it.pax);
       return sum + (isNaN(paxNum) ? 0 : paxNum);
     }, 0);
-    setCurrentPage(1);
   }, [filteredStockList]);
 
   function formatDot(dotValue) {
@@ -537,6 +574,24 @@ function Dashboard() {
             {Array.isArray(paginatedList) && paginatedList.length > 0 ? (
               paginatedList.map((item, idx) => {
                 const serial = (currentPage - 1) * itemsPerPage + idx + 1;
+
+                let totalSeats = 0;
+                let seatsSold = 0;
+                if (Array.isArray(item.items) && item.items.length > 0) {
+                  totalSeats = item.items.reduce(
+                    (sum, it) => sum + (parseInt(it.pax, 10) || 0),
+                    0
+                  );
+                  seatsSold = item.items.reduce(
+                    (sum, it) => sum + (parseInt(it.sold, 10) || 0),
+                    0
+                  );
+                } else {
+                  totalSeats = parseInt(item.pax, 10) || 0;
+                  seatsSold = parseInt(item.sold, 10) || 0;
+                }
+                const seatsLeft = totalSeats - seatsSold;
+
                 return (
                   <div key={item.id ?? serial} className="size-text mb-3">
                     <div
@@ -547,17 +602,18 @@ function Dashboard() {
                       <span>
                         {item.sector} | {formatDot(item.dot)} | {item.airline} |{" "}
                         <span className="text-success fw-bold">
-                          <strong className="text-success">{item.pax}</strong>{" "}
+                          <strong className="text-success">{seatsLeft}</strong>{" "}
                           Seats Left
                         </span>
                       </span>
-                      <span className="caret">
+
+                      <div className="turq-caret ms-1" role="button">
                         {openIndex === serial ? "▴" : "▾"}
-                      </span>
+                      </div>
                     </div>
 
                     {openIndex === serial && (
-                      <div className="flight-body">
+                      <div className="flight-body border border-light">
                         <div className="d-flex justify-content-between mb-2">
                           <span className="text-danger">
                             <strong>PNR:</strong> {item.pnr}
@@ -571,21 +627,34 @@ function Dashboard() {
                           </span>
                         </div>
 
+                        <div className="d-flex flex-row justify-content-center gap-3 align-items-center mt-0 mb-2">
+                          <span className="text-success1 fw-bold px-2">
+                            Total Seats: <strong>{totalSeats}</strong>
+                          </span>
+                          <span className="text-success fw-bold">
+                            Seats Sold: <strong>{seatsSold}</strong>
+                          </span>
+                          <span className="text-danger fw-bold pe-1">
+                            Seats Left:{" "}
+                            <strong className="text-danger">{seatsLeft}</strong>
+                          </span>
+                        </div>
+
                         <div className="table-responsive">
                           <table className="table table-bordered table-sm text-center mb-0">
                             <thead className="table-light">
                               <tr>
-                                <th>SL. NO</th>
-                                <th>PAXQ</th>
-                                <th>DATE</th>
-                                <th>AGENT</th>
+                                <th style={{ width: "15%" }}>SL. NO</th>
+                                <th style={{ width: "25%" }}>PAXQ</th>
+                                <th style={{ width: "30%" }}>DATE</th>
+                                <th style={{ width: "25%" }}>AGENT</th>
                               </tr>
                             </thead>
 
                             <tbody>
                               <tr>
                                 <td>{serial}</td>
-                                <td>{item.pax}</td>
+                                <td>{seatsLeft}</td>
                                 <td style={{ whiteSpace: "nowrap" }}>
                                   {formatDot(item.dot)}
                                 </td>
@@ -622,7 +691,7 @@ function Dashboard() {
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                 >
-                  ← Prev
+                  Prev
                 </button>
 
                 <button
@@ -633,7 +702,7 @@ function Dashboard() {
                   }
                   disabled={currentPage === totalPages}
                 >
-                  Next →
+                  Next
                 </button>
               </div>
             )}

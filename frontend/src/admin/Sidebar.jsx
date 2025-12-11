@@ -66,11 +66,11 @@ export default function Sidebar() {
     mainLogo();
   }, [API_URL]);
 
-  const toggleSidebar = () => setIsOpen(!isOpen);
+  const toggleSidebar = () => setIsOpen((s) => !s);
   const closeSidebar = () => setIsOpen(false);
+
   const role = resolveRole();
   let visibleLinks = NAV_LINKS;
-
   if (role === "agent") {
     visibleLinks = NAV_LINKS.filter((l) => l.path === "/admin/dashboard");
   }
@@ -99,6 +99,7 @@ export default function Sidebar() {
           <button
             className="btn btn-outline-secondary hamburger-btn"
             onClick={toggleSidebar}
+            aria-label="Open sidebar"
           >
             ☰
           </button>
@@ -145,8 +146,13 @@ export default function Sidebar() {
                 to={link.path}
                 end={link.exact}
                 className={({ isActive }) =>
-                  "list-group-item list-group-item-action " +
-                  (isActive ? "active" : "")
+                  [
+                    "list-group-item rounded-0",
+                    "list-group-item-action",
+                    isActive ? "active" : "",
+                  ]
+                    .join(" ")
+                    .trim()
                 }
                 onClick={closeSidebar}
               >
@@ -157,7 +163,7 @@ export default function Sidebar() {
 
           <div className="p-3">
             <button
-              className="btn btn-danger text-start w-100"
+              className="btn text-danger fw-bold text-start w-100"
               onClick={handleLogout}
               type="button"
             >
@@ -171,7 +177,7 @@ export default function Sidebar() {
         className="d-none d-md-block admin-sidebar"
         aria-label="Admin sidebar"
       >
-        <div className="p-0">
+        <div className="p-0 d-flex flex-column" style={{ minHeight: "100%" }}>
           <Link to="/admin/dashboard" onClick={() => {}}>
             <img
               src={logo || Travels}
@@ -189,8 +195,13 @@ export default function Sidebar() {
                 to={link.path}
                 end={link.exact}
                 className={({ isActive }) =>
-                  "list-group-item list-group-item-action" +
-                  (isActive ? "active" : "")
+                  [
+                    "list-group-item rounded-0",
+                    "list-group-item-action",
+                    isActive ? "active" : "",
+                  ]
+                    .join(" ")
+                    .trim()
                 }
               >
                 {link.label}
@@ -198,9 +209,9 @@ export default function Sidebar() {
             ))}
           </div>
 
-          <div className="p-3 mt-auto">
+          <div className="p-3">
             <button
-              className="btn btn-danger w-100 text-start"
+              className="btn text-danger fw-bold w-100 text-start"
               onClick={handleLogout}
               type="button"
             >

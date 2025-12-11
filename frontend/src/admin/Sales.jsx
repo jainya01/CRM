@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
 import "../App.css";
@@ -563,7 +563,7 @@ function Sales() {
       "SEP",
       "OCT",
       "NOV",
-      "DES",
+      "DEC",
     ];
 
     const day = String(dateObj.getDate()).padStart(2, "0");
@@ -572,6 +572,17 @@ function Sales() {
 
     return `${day} ${month} ${year}`;
   }
+
+  const itemsPerPage = 30;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const paginatedGroups = useMemo(() => {
+    if (!Array.isArray(groupedByHeader)) return [];
+    const start = (currentPage - 1) * itemsPerPage;
+    return groupedByHeader.slice(start, start + itemsPerPage);
+  }, [groupedByHeader, currentPage]);
+
+  const totalPages = Math.ceil((groupedByHeader?.length || 0) / itemsPerPage);
 
   return (
     <div className="content-wrapper">
@@ -759,11 +770,11 @@ function Sales() {
           </button>
 
           <Link
-            className="btn btn-light sector-link"
+            className="btn btn-light sector-link sales-btn"
             onClick={newStockAdd}
             ref={buttonRef}
           >
-            Add Stock
+            Add Sales
           </Link>
 
           {sales && (
@@ -880,7 +891,7 @@ function Sales() {
       </div>
 
       <div className="sales-grid grid-container">
-        {groupedByHeader.map((group) => {
+        {paginatedGroups.map((group) => {
           const first = group.items[0] ?? {};
           const pnr = first.pnr ?? "-";
           const fare = first.fare ?? "-";
@@ -927,10 +938,10 @@ function Sales() {
                       <table className="table table-bordered table-striped text-center table-sm mb-0">
                         <thead className="table-light">
                           <tr>
-                            <th style={{ width: "8%" }}>SL. NO</th>
-                            <th style={{ width: "52%" }}>PAX Name</th>
-                            <th style={{ width: "20%" }}>DATE</th>
-                            <th style={{ width: "30%" }}>AGENT</th>
+                            <th style={{ width: "15%" }}>SL. NO</th>
+                            <th style={{ width: "30%" }}>PAX Name</th>
+                            <th style={{ width: "30%" }}>DATE</th>
+                            <th style={{ width: "25%" }}>AGENT</th>
                           </tr>
                         </thead>
 
@@ -965,6 +976,32 @@ function Sales() {
           </div>
         )}
       </div>
+
+      {groupedByHeader && groupedByHeader.length > itemsPerPage && (
+        <div className="d-flex justify-content-center gap-2 align-items-center mt-3">
+          <button
+            type="button"
+            className="btn btn-sm btn-success"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+
+          <span className="px-2 small text-muted">
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-success"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       <ToastContainer position="bottom-right" autoClose={1000} />
     </div>

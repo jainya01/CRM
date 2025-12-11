@@ -82,6 +82,23 @@ aside.admin-sidebar {
   color: #fff !important;
 }
 
+.list-group-item.active {
+  background-color: rgba(197, 45, 45, 0.12) !important;
+  color: #ffffff !important;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.list-group-item.active:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.admin-sidebar .list-group .list-group-item.active,
+.mobile-sidebar .list-group .list-group-item.active {
+  background-color: #0046ff !important;
+  color: #ffffff !important;
+}
+
 .btn-closed {
   outline: none;
   background: none;
@@ -104,7 +121,7 @@ aside.admin-sidebar {
 }
 
 .header-color {
-  background-color: #198754;
+  background-color: #0046ff !important;
 }
 
 .size-text {
@@ -752,4 +769,15 @@ aside.admin-sidebar {
 
 .border-change {
   border: 1px solid #ced4da;
+}
+
+.submit-btn {
+  background-color: #e9ecef !important;
+  color: #000;
+}
+
+.sales-btn {
+  background-color: #4a90e2 !important;
+  color: #fff !important;
+  border: none;
 }
