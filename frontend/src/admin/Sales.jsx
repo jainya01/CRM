@@ -42,6 +42,17 @@ function Sales() {
   const portalRef1 = useRef(null);
   const [sectorCoords, setSectorCoords] = useState(null);
   const [agentCoords, setAgentCoords] = useState(null);
+  const [groupPages, setGroupPages] = useState({});
+  const itemsPerPage = 27;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const setPageForGroup = (key, page) => {
+    setGroupPages((prev) => ({ ...prev, [key]: page }));
+  };
+
+  const getPageForGroup = (key) => {
+    return groupPages[key] || 1;
+  };
 
   let newStockAdd = (e) => {
     e.stopPropagation();
@@ -189,16 +200,6 @@ function Sales() {
       controller.abort();
     };
   }, [API_URL]);
-
-  function isDotExpired(dateString) {
-    if (!dateString) return false;
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return false;
-    d.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return d < today;
-  }
 
   useEffect(() => {
     function updatePositions() {
@@ -525,6 +526,97 @@ function Sales() {
     });
   };
 
+  function parseToDateObj(value) {
+    if (value == null || value === "") return null;
+
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+
+    if (typeof value === "number" && !Number.isNaN(value)) {
+      try {
+        const utcDays = value - 25569;
+        const utcValue = utcDays * 86400 * 1000;
+        const d = new Date(utcValue);
+        return isNaN(d.getTime()) ? null : d;
+      } catch (e) {}
+    }
+
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      value.v &&
+      (value.t === "d" || value.t === "n")
+    ) {
+      const d = new Date(value.v);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    if (typeof value === "string") {
+      const s = value.trim();
+
+      if (/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}:\d{2})?$/.test(s)) {
+        const iso = s.replace(" ", "T");
+        const d = new Date(iso);
+        if (!isNaN(d.getTime())) return d;
+      }
+
+      let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+      if (m) {
+        let [, p1, p2, p3] = m;
+        if (p3.length === 2) p3 = Number(p3) < 70 ? "20" + p3 : "19" + p3;
+        const dNum = parseInt(p1, 10);
+        const mNum = parseInt(p2, 10);
+        const yNum = parseInt(p3, 10);
+
+        const dateObj = new Date(yNum, mNum - 1, dNum);
+        if (!isNaN(dateObj.getTime())) return dateObj;
+      }
+
+      const d2 = new Date(s);
+      if (!isNaN(d2.getTime())) return d2;
+    }
+
+    return null;
+  }
+
+  function formatDateDisplay(d) {
+    if (!d || !(d instanceof Date) || isNaN(d.getTime())) return "-";
+    const day = String(d.getDate()).padStart(2, "0");
+    const monthNames = [
+      "JAN",
+      "FEB",
+      "MAR",
+      "APR",
+      "MAY",
+      "JUN",
+      "JUL",
+      "AUG",
+      "SEP",
+      "OCT",
+      "NOV",
+      "DEC",
+    ];
+    const month = monthNames[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  }
+
+  function formatDot(value) {
+    if (value == null || value === "") return "-";
+    const d = parseToDateObj(value);
+    return formatDateDisplay(d);
+  }
+
+  function isDotExpired(value) {
+    if (value == null || value === "") return false;
+    const d = parseToDateObj(value);
+    if (!d) return false;
+    const parsed = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    parsed.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return parsed < today;
+  }
+
   const [coords, setCoords] = useState(null);
 
   useEffect(() => {
@@ -547,42 +639,31 @@ function Sales() {
     };
   }, [showSectorSuggestions, stock.sector]);
 
-  function formatDot(dateString) {
-    if (!dateString) return "-";
-    const dateObj = new Date(dateString);
+  const groupedSales = useMemo(() => {
+    const map = new Map();
+    staff.forEach((item) => {
+      const sector = (item.sector ?? "").toString().trim();
+      const dot = (item.dot ?? "").toString().trim();
+      const airline = (item.airline ?? "").toString().trim();
 
-    const monthNames = [
-      "JAN",
-      "FEB",
-      "MAR",
-      "APR",
-      "MAY",
-      "JUN",
-      "JUL",
-      "AUG",
-      "SEP",
-      "OCT",
-      "NOV",
-      "DEC",
-    ];
+      const key = `${sector}||${dot}||${airline}`;
 
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const month = monthNames[dateObj.getMonth()];
-    const year = dateObj.getFullYear();
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(item);
+    });
 
-    return `${day} ${month} ${year}`;
-  }
-
-  const itemsPerPage = 30;
-  const [currentPage, setCurrentPage] = useState(1);
+    return Array.from(map.entries()).map(([key, items]) => {
+      const [sector, dot, airline] = key.split("||");
+      return { key, sector, dot, airline, items };
+    });
+  }, [staff]);
 
   const paginatedGroups = useMemo(() => {
-    if (!Array.isArray(groupedByHeader)) return [];
     const start = (currentPage - 1) * itemsPerPage;
-    return groupedByHeader.slice(start, start + itemsPerPage);
-  }, [groupedByHeader, currentPage]);
+    return groupedSales.slice(start, start + itemsPerPage);
+  }, [groupedSales, currentPage]);
 
-  const totalPages = Math.ceil((groupedByHeader?.length || 0) / itemsPerPage);
+  const totalPages = Math.ceil((groupedSales?.length || 0) / itemsPerPage);
 
   return (
     <div className="content-wrapper">
@@ -616,11 +697,13 @@ function Sales() {
               <ul
                 className="list-group portal-suggestion-box"
                 ref={portalRef}
+                role="listbox"
+                aria-label="sector suggestions"
                 style={{
                   position: "absolute",
-                  top: sectorCoords.top,
-                  left: sectorCoords.left,
-                  width: sectorCoords.width,
+                  top: `${sectorCoords.top}px`,
+                  left: `${sectorCoords.left}px`,
+                  width: `${sectorCoords.width}px`,
                   maxHeight: 320,
                   overflowY: "auto",
                   background: "#fff",
@@ -632,20 +715,37 @@ function Sales() {
                 }}
               >
                 {filteredSectors.length > 0 ? (
-                  filteredSectors.map((s) => (
+                  filteredSectors.map((s, i) => (
                     <li
-                      key={s}
-                      style={{ cursor: "pointer", padding: "10px 12px" }}
+                      key={`${s}-${i}`}
+                      role="option"
+                      tabIndex={0}
                       onClick={() => {
                         handleSelectSector(s);
                         setShowSectorSuggestions(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleSelectSector(s);
+                          setShowSectorSuggestions(false);
+                        }
+                      }}
+                      style={{
+                        cursor: "pointer",
+                        padding: "10px 12px",
+                        lineHeight: 1.3,
+                        minHeight: 36,
+                        boxSizing: "border-box",
+                        whiteSpace: "normal",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                       }}
                     >
                       {s}
                     </li>
                   ))
                 ) : (
-                  <li style={{ padding: "8px 12px", color: "#777" }}>
+                  <li style={{ padding: "10px 12px", color: "#777" }}>
                     No sector found
                   </li>
                 )}
@@ -774,7 +874,7 @@ function Sales() {
             onClick={newStockAdd}
             ref={buttonRef}
           >
-            Add Sales
+            Add Stock
           </Link>
 
           {sales && (
@@ -897,9 +997,7 @@ function Sales() {
           const fare = first.fare ?? "-";
           const cardKey = group.key;
           const formattedDot = formatDot(group.dot);
-          const headerText = `${group.sector} ${formattedDot} ${
-            group.airline
-          } ${group.agent !== "-" ? group.agent : "-"}`;
+          const headerText = `${group.sector} ${formattedDot} ${group.airline}`;
 
           return (
             <div key={cardKey} className="card-wrapper">
@@ -946,21 +1044,90 @@ function Sales() {
                         </thead>
 
                         <tbody>
-                          {group.items.map((it, idx) => {
-                            const paxName =
-                              (it.pax ?? "").toString().trim() || "-";
-                            const dot = formatDot(it.dot ?? group.dot ?? "-");
-                            const agent = it.agent ?? group.agent ?? "-";
+                          {(() => {
+                            const items = group.items ?? [];
+                            const itemsPerPage = 7;
+                            const currentPage = getPageForGroup(group.key);
+                            const startIdx = (currentPage - 1) * itemsPerPage;
+                            const paginatedItems = items.slice(
+                              startIdx,
+                              startIdx + itemsPerPage
+                            );
+                            const totalPages = Math.ceil(
+                              items.length / itemsPerPage
+                            );
+
+                            if (items.length === 0) {
+                              return (
+                                <tr>
+                                  <td colSpan="4" className="text-danger">
+                                    No Sales Available
+                                  </td>
+                                </tr>
+                              );
+                            }
 
                             return (
-                              <tr key={it.id ?? idx}>
-                                <td>{idx + 1}</td>
-                                <td>{paxName}</td>
-                                <td style={{ whiteSpace: "nowrap" }}>{dot}</td>
-                                <td>{agent !== "-" ? agent : "-"}</td>
-                              </tr>
+                              <>
+                                {paginatedItems.map((it, idx) => {
+                                  const paxName =
+                                    (it.pax ?? "").toString().trim() || "-";
+                                  const dotb = formatDot(
+                                    it.dotb ?? group.dot ?? "-"
+                                  );
+                                  const agent = it.agent ?? "-";
+
+                                  return (
+                                    <tr key={it.id ?? idx}>
+                                      <td>{startIdx + idx + 1}</td>
+                                      <td>{paxName}</td>
+                                      <td style={{ whiteSpace: "nowrap" }}>
+                                        {dotb}
+                                      </td>
+                                      <td>{agent}</td>
+                                    </tr>
+                                  );
+                                })}
+
+                                {items.length > itemsPerPage && (
+                                  <tr>
+                                    <td colSpan="4" className="text-center p-2">
+                                      <button
+                                        className="btn btn-sm btn-success mx-1"
+                                        disabled={currentPage === 1}
+                                        onClick={() =>
+                                          setPageForGroup(
+                                            group.key,
+                                            Math.max(1, currentPage - 1)
+                                          )
+                                        }
+                                      >
+                                        Prev
+                                      </button>
+                                      <span className="mx-2">
+                                        Page {currentPage} of {totalPages}
+                                      </span>
+                                      <button
+                                        className="btn btn-sm btn-success mx-1"
+                                        disabled={currentPage === totalPages}
+                                        onClick={() =>
+                                          setPageForGroup(
+                                            group.key,
+                                            Math.min(
+                                              totalPages,
+                                              currentPage + 1
+                                            )
+                                          )
+                                        }
+                                      >
+                                        Next
+                                      </button>
+                                    </td>
+                                  </tr>
+                                )}
+                              </>
                             );
-                          })}
+                          })()}
                         </tbody>
                       </table>
                     </div>
@@ -970,15 +1137,16 @@ function Sales() {
             </div>
           );
         })}
-        {groupedByHeader.length === 0 && (
+
+        {paginatedGroups.length === 0 && (
           <div className="col-12 text-center text-danger">
             No sales available.
           </div>
         )}
       </div>
 
-      {groupedByHeader && groupedByHeader.length > itemsPerPage && (
-        <div className="d-flex justify-content-center gap-2 align-items-center mt-3">
+      {totalPages > 1 && (
+        <div className="d-flex justify-content-center gap-2 align-items-center mt-0 mb-1">
           <button
             type="button"
             className="btn btn-sm btn-success"
@@ -1002,6 +1170,16 @@ function Sales() {
           </button>
         </div>
       )}
+
+
+
+      {/* <div className="d-flex justify-content-center">
+        <div className="blink-box"></div>
+      </div> */}
+
+
+
+
 
       <ToastContainer position="bottom-right" autoClose={1000} />
     </div>

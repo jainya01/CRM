@@ -14,14 +14,16 @@ import Settings from "./admin/Settings";
 import Agent from "./admin/Agent";
 import Staff from "./admin/Staff";
 import Sales from "./admin/Sales";
+import StaffLogin from "./components/StaffLogin";
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/crm">
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/adminlogin" element={<AdminLogin />} />
         <Route path="/agentlogin" element={<AgentLogin />} />
+        <Route path="/stafflogin" element={<StaffLogin />} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="/admin" element={<User />}>

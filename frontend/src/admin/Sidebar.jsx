@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
 import Travels from "../assets/Travel.png";
 import axios from "axios";
@@ -16,11 +16,20 @@ const NAV_LINKS = [
 ];
 
 const resolveRole = () => {
-  const keys = ["role", "adminRole", "agentRole", "userRole"];
+  const keys = ["role", "adminRole", "agentRole", "staffRole"];
   for (const k of keys) {
     const v = localStorage.getItem(k);
     if (v) return String(v).toLowerCase();
   }
+
+  try {
+    const staffUserRaw = localStorage.getItem("staffUser");
+    if (staffUserRaw) {
+      const parsed = JSON.parse(staffUserRaw);
+      if (parsed?.role) return String(parsed.role).toLowerCase();
+    }
+  } catch (_) {}
+
   try {
     const adminUserRaw = localStorage.getItem("adminUser");
     if (adminUserRaw) {
@@ -28,6 +37,7 @@ const resolveRole = () => {
       if (parsed?.role) return String(parsed.role).toLowerCase();
     }
   } catch (_) {}
+
   try {
     const agentUserRaw = localStorage.getItem("agentUser");
     if (agentUserRaw) {
@@ -35,8 +45,11 @@ const resolveRole = () => {
       if (parsed?.role) return String(parsed.role).toLowerCase();
     }
   } catch (_) {}
+
   if (localStorage.getItem("adminToken")) return "admin";
   if (localStorage.getItem("agentToken")) return "agent";
+  if (localStorage.getItem("staffToken")) return "staff";
+
   return null;
 };
 
@@ -45,51 +58,97 @@ export default function Sidebar() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [logo, setLogo] = useState(null);
+  const [otb, setOtb] = useState([]);
+  const [blinkOTB, setBlinkOTB] = useState(false);
+  const [blinkURASE, setBlinkURASE] = useState(false);
   const navigate = useNavigate();
+  const role = resolveRole();
+  const location = useLocation();
 
   useEffect(() => {
-    const mainLogo = async () => {
+    const lastSeenOTB =
+      parseInt(localStorage.getItem("lastSeenOTBCreatedAt")) || 0;
+    const lastSeenURASE =
+      parseInt(localStorage.getItem("lastSeenURASECreatedAt")) || 0;
+
+    const fetchAllotbs = async () => {
       try {
-        const response = await axios.get(`${API_URL}/get-logo`);
-        const data = response.data;
-        if (data.success && data.logo && data.logo.logo) {
-          const baseURL = API_URL.replace(/\/api$/, "");
-          setLogo(`${baseURL}/uploads/${data.logo.logo}`);
+        const response = await axios.get(`${API_URL}/allotbs`);
+        const data = response.data?.data || [];
+        setOtb(data);
+
+        const uraseIds = data.map((item) => item.id);
+        localStorage.setItem("uraseIds", uraseIds.join(","));
+
+        const blockedIds = (localStorage.getItem("uraseBlockedIds") || "")
+          .split(",")
+          .filter(Boolean)
+          .map(Number);
+
+        const hasActiveUrase = uraseIds.some((id) => !blockedIds.includes(id));
+
+        if (data.length > 0) {
+          const latestCreated = new Date(data[0].created_at).getTime();
+
+          if (
+            latestCreated > lastSeenOTB &&
+            location.pathname !== "/admin/OTB"
+          ) {
+            setBlinkOTB(true);
+          }
+
+          if (latestCreated > lastSeenURASE && hasActiveUrase) {
+            setBlinkURASE(true);
+          } else {
+            setBlinkURASE(false);
+          }
         } else {
-          setLogo(null);
+          setBlinkURASE(false);
         }
-      } catch (error) {
-        console.error("Error fetching logo:", error);
-        setLogo(null);
+      } catch (err) {
+        console.error(err);
       }
     };
-    mainLogo();
-  }, [API_URL]);
+
+    fetchAllotbs();
+    const interval = setInterval(fetchAllotbs, 1000);
+    return () => clearInterval(interval);
+  }, [API_URL, location.pathname]);
 
   const toggleSidebar = () => setIsOpen((s) => !s);
   const closeSidebar = () => setIsOpen(false);
 
-  const role = resolveRole();
-  let visibleLinks = NAV_LINKS;
-  if (role === "agent") {
-    visibleLinks = NAV_LINKS.filter((l) => l.path === "/admin/dashboard");
-  }
-
   const handleLogout = (e) => {
-    if (e && typeof e.stopPropagation === "function") e.stopPropagation();
-    const keysToRemove = [
+    if (e?.stopPropagation) e.stopPropagation();
+    [
       "isAuthenticated",
       "adminToken",
+      "staffToken",
       "agentToken",
       "adminUser",
+      "staffUser",
       "agentUser",
       "role",
       "adminRole",
+      "staffRole",
       "agentRole",
-    ];
-    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    ].forEach((k) => localStorage.removeItem(k));
     closeSidebar();
     navigate("/", { replace: true });
+  };
+
+  let visibleLinks = NAV_LINKS;
+
+  if (role === "staff" || role === "agent") {
+    visibleLinks = NAV_LINKS.filter((l) => l.path === "/admin/dashboard");
+  }
+
+  const handleOTBClick = () => {
+    if (otb.length > 0) {
+      const latestOTB = new Date(otb[0].created_at).getTime();
+      localStorage.setItem("lastSeenOTBCreatedAt", latestOTB);
+      setBlinkOTB(false);
+    }
   };
 
   return (
@@ -103,7 +162,6 @@ export default function Sidebar() {
           >
             ☰
           </button>
-
           <Link to="/admin/dashboard" onClick={closeSidebar}>
             <img
               src={logo || Travels}
@@ -147,16 +205,22 @@ export default function Sidebar() {
                 end={link.exact}
                 className={({ isActive }) =>
                   [
-                    "list-group-item rounded-0",
-                    "list-group-item-action",
+                    "list-group-item rounded-0 list-group-item-action",
                     isActive ? "active" : "",
-                  ]
-                    .join(" ")
-                    .trim()
+                  ].join(" ")
                 }
-                onClick={closeSidebar}
+                onClick={() => {
+                  closeSidebar();
+                  if (link.path === "/admin/OTB") handleOTBClick();
+                }}
               >
                 {link.label}
+                {link.path === "/admin/OTB" && blinkOTB && (
+                  <div className="blink-box ms-2"></div>
+                )}
+                {link.path === "/admin/urase" && blinkURASE && (
+                  <div className="blink-box ms-2"></div>
+                )}
               </NavLink>
             ))}
           </div>
@@ -178,7 +242,7 @@ export default function Sidebar() {
         aria-label="Admin sidebar"
       >
         <div className="p-0 d-flex flex-column" style={{ minHeight: "100%" }}>
-          <Link to="/admin/dashboard" onClick={() => {}}>
+          <Link to="/admin/dashboard">
             <img
               src={logo || Travels}
               alt="logo"
@@ -196,15 +260,21 @@ export default function Sidebar() {
                 end={link.exact}
                 className={({ isActive }) =>
                   [
-                    "list-group-item rounded-0",
-                    "list-group-item-action",
+                    "list-group-item rounded-0 list-group-item-action",
                     isActive ? "active" : "",
-                  ]
-                    .join(" ")
-                    .trim()
+                  ].join(" ")
                 }
+                onClick={() => {
+                  if (link.path === "/admin/OTB") handleOTBClick();
+                }}
               >
                 {link.label}
+                {link.path === "/admin/OTB" && blinkOTB && (
+                  <div className="blink-box ms-2 mb-0 p-0"></div>
+                )}
+                {link.path === "/admin/urase" && blinkURASE && (
+                  <div className="blink-box ms-2 mb-0 p-0"></div>
+                )}
               </NavLink>
             ))}
           </div>

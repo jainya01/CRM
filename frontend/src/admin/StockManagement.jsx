@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
@@ -15,6 +15,18 @@ function StockManagement() {
     airline: "",
     pnr: "",
   });
+
+  const [openIndex, setOpenIndex] = useState(null);
+  const [staff, setStaff] = useState([]);
+  const [showDate, setShowDate] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("available");
+  const itemsPerPage = 27;
+  const [currentPage, setCurrentPage] = useState(1);
+  const modalRef = useRef(null);
+  const [showModal, setShowModal] = useState(false);
+  const [file, setFile] = useState(null);
+  const [sales, setSales] = useState([]);
+  const [salesPageState, setSalesPageState] = useState({});
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -48,10 +60,6 @@ function StockManagement() {
     }
   };
 
-  const [openIndex, setOpenIndex] = useState(null);
-  const [staff, setStaff] = useState([]);
-  const [showDate, setShowDate] = useState(false);
-
   const toggleDropdown = (index) => {
     setOpenIndex(openIndex === index ? null : index);
   };
@@ -59,26 +67,32 @@ function StockManagement() {
   useEffect(() => {
     const controller = new AbortController();
 
-    const allStaff = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get(`${API_URL}/allstocks`, {
-          signal: controller.signal,
-        });
-        const payload = response.data?.data ?? response.data;
-        setStaff(Array.isArray(payload) ? payload : []);
+        const [stocksResponse, salesResponse] = await Promise.all([
+          axios.get(`${API_URL}/allstocks`, { signal: controller.signal }),
+          axios.get(`${API_URL}/allsales`, { signal: controller.signal }),
+        ]);
+
+        const stocksPayload = stocksResponse.data?.data ?? stocksResponse.data;
+        setStaff(Array.isArray(stocksPayload) ? stocksPayload : []);
+
+        const salesPayload = salesResponse.data?.data ?? salesResponse.data;
+        setSales(Array.isArray(salesPayload) ? salesPayload : []);
       } catch (error) {
         if (axios.isCancel(error)) {
-          console.log("AllStaff request cancelled");
+          console.log("Fetch request cancelled");
         } else {
-          console.error("Error fetching allstocks:", error);
+          console.error("Error fetching data:", error);
           setStaff([]);
+          setSales([]);
         }
       }
     };
 
-    allStaff();
+    fetchData();
 
-    const interval = setInterval(allStaff, 100);
+    const interval = setInterval(fetchData, 1000);
 
     return () => {
       controller.abort();
@@ -86,9 +100,97 @@ function StockManagement() {
     };
   }, [API_URL]);
 
-  const groupedByHeader = (() => {
+  function parseToDateObj(value) {
+    if (value == null || value === "") return null;
+
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+
+    if (typeof value === "number" && !Number.isNaN(value)) {
+      try {
+        const utcDays = value - 25569;
+        const utcValue = utcDays * 86400 * 1000;
+        const d = new Date(utcValue);
+        if (!isNaN(d.getTime())) return d;
+      } catch (e) {}
+    }
+
+    if (typeof value === "string") {
+      const s = value.trim();
+
+      if (/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}:\d{2})?$/.test(s)) {
+        const iso = s.replace(" ", "T");
+        const d = new Date(iso);
+        if (!isNaN(d.getTime())) return d;
+      }
+
+      const sepMatch = s.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})$/);
+      if (sepMatch) {
+        let [, p1, p2, p3] = sepMatch;
+        if (p1.length === 4) {
+          const y = parseInt(p1, 10),
+            m = parseInt(p2, 10),
+            d = parseInt(p3, 10);
+          const dateObj = new Date(y, m - 1, d);
+          if (!isNaN(dateObj.getTime())) return dateObj;
+        } else {
+          let day = parseInt(p1, 10),
+            month = parseInt(p2, 10),
+            year = parseInt(p3, 10);
+          if (year < 100) year = year < 70 ? 2000 + year : 1900 + year;
+          const dateObj = new Date(year, month - 1, day);
+          if (!isNaN(dateObj.getTime())) return dateObj;
+        }
+      }
+
+      const d2 = new Date(s);
+      if (!isNaN(d2.getTime())) return d2;
+    }
+
+    return null;
+  }
+
+  function formatDateToDisplay(dateObj) {
+    if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime()))
+      return "-";
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const monthNames = [
+      "JAN",
+      "FEB",
+      "MAR",
+      "APR",
+      "MAY",
+      "JUN",
+      "JUL",
+      "AUG",
+      "SEP",
+      "OCT",
+      "NOV",
+      "DEC",
+    ];
+    const month = monthNames[dateObj.getMonth()];
+    const year = dateObj.getFullYear();
+    return `${day} ${month} ${year}`;
+  }
+
+  function formatDot(dateString) {
+    if (!dateString && dateString !== 0) return "-";
+    const d = parseToDateObj(dateString);
+    return formatDateToDisplay(d);
+  }
+
+  function isDotExpired(dateString) {
+    if (!dateString && dateString !== 0) return false;
+    const d = parseToDateObj(dateString);
+    if (!d) return false;
+    const parsed = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return parsed < today;
+  }
+
+  const groupedByHeader = useMemo(() => {
     const map = new Map();
-    staff.forEach((item) => {
+    (Array.isArray(staff) ? staff : []).forEach((item) => {
       const sector = (item.sector ?? "").toString().trim();
       const dot = (item.dot ?? "").toString().trim();
       const airline = (item.airline ?? "").toString().trim();
@@ -111,54 +213,122 @@ function StockManagement() {
         items,
       };
     });
-  })();
+  }, [staff]);
 
-  function formatDot(dateString) {
-    if (!dateString) return "-";
-    const dateObj = new Date(dateString);
+  const filteredGroups = useMemo(() => {
+    if (!Array.isArray(groupedByHeader)) return [];
+    if (filterStatus === "all") return groupedByHeader;
+    const wantExpired = filterStatus === "expired";
+    return groupedByHeader.filter((group) => {
+      const isExpired = group.items.some((it) => isDotExpired(it.dot));
+      return wantExpired ? isExpired : !isExpired;
+    });
+  }, [groupedByHeader, filterStatus]);
 
-    const monthNames = [
-      "JAN",
-      "FEB",
-      "MAR",
-      "APR",
-      "MAY",
-      "JUN",
-      "JUL",
-      "AUG",
-      "SEP",
-      "OCT",
-      "NOV",
-      "DEC",
-    ];
+  const sortedGroups = useMemo(() => {
+    if (!Array.isArray(filteredGroups)) return [];
 
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const month = monthNames[dateObj.getMonth()];
-    const year = dateObj.getFullYear();
+    const getTime = (t) => {
+      const d = new Date(t);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
 
-    return `${day} ${month} ${year}`;
-  }
+    return [...filteredGroups].sort((a, b) => {
+      const latestSaleTime = (group) => {
+        const relatedSales = sales.filter(
+          (sale) =>
+            sale.sector?.trim() === group.sector?.trim() &&
+            sale.dot?.trim() === group.dot?.trim() &&
+            sale.airline?.trim() === group.airline?.trim()
+        );
 
-  function isDotExpired(dateString) {
-    if (!dateString) return false;
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    d.setHours(0, 0, 0, 0);
-    return d < today;
-  }
+        if (relatedSales.length === 0) return 0;
 
-  const itemsPerPage = 24;
-  const [currentPage, setCurrentPage] = useState(1);
+        return Math.max(
+          ...relatedSales.map((s) => getTime(s.updated_at || s.created_at))
+        );
+      };
+
+      const latestStockTime = (group) => {
+        return Math.max(
+          ...group.items.map((i) => getTime(i.updated_at || i.created_at))
+        );
+      };
+
+      const timeA = latestSaleTime(a) || latestStockTime(a);
+      const timeB = latestSaleTime(b) || latestStockTime(b);
+
+      return timeB - timeA;
+    });
+  }, [filteredGroups, sales]);
 
   const paginatedGroups = useMemo(() => {
-    if (!Array.isArray(groupedByHeader)) return [];
+    if (!Array.isArray(sortedGroups)) return [];
     const start = (currentPage - 1) * itemsPerPage;
-    return groupedByHeader.slice(start, start + itemsPerPage);
-  }, [groupedByHeader, currentPage]);
+    return sortedGroups.slice(start, start + itemsPerPage);
+  }, [sortedGroups, currentPage]);
 
-  const totalPages = Math.ceil((groupedByHeader?.length || 0) / itemsPerPage);
+  const totalPages = Math.max(
+    1,
+    Math.ceil((filteredGroups?.length || 0) / itemsPerPage)
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus]);
+
+  const handleFileChange = (e) => {
+    setFile(e.target.files[0]);
+  };
+
+  const handleSubmited = async (e) => {
+    e.preventDefault();
+
+    if (!file) {
+      toast.error("Please select a excel file first!");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await axios.post(`${API_URL}/upload-stock`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (res.status === 200) {
+        toast.success(res.data.message || "File uploaded successfully!");
+        setShowModal(false);
+        setFile(null);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error.response?.data?.error || "Something went wrong while uploading!"
+      );
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        setShowModal(false);
+      }
+    };
+
+    if (showModal) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showModal]);
 
   return (
     <div className="content-wrapper">
@@ -238,12 +408,55 @@ function StockManagement() {
             Submit
           </button>
 
-          <Link
-            className="btn btn-light sector-link sales-btn"
-            to="/admin/sales"
-          >
-            Add Sales
-          </Link>
+          <div style={{ position: "relative" }}>
+            <Link
+              className="btn btn-light sector-link sales-btn"
+              onClick={() => setShowModal(!showModal)}
+            >
+              Add Bulk
+            </Link>
+
+            {showModal && (
+              <div className="bulk-upload-box" ref={modalRef}>
+                <h5>Upload Excel File</h5>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  onChange={handleFileChange}
+                  required
+                />
+                <div style={{ marginTop: "10px" }}>
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleSubmited}
+                  >
+                    Submit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ marginLeft: "10px" }}
+                    onClick={() => setShowModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <select
+              className="form-select"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="available">Available</option>
+              <option value="expired">Expired</option>
+            </select>
+          </div>
         </form>
       </div>
 
@@ -361,33 +574,112 @@ function StockManagement() {
                         <thead className="table-light">
                           <tr>
                             <th style={{ width: "20%" }}>SL. NO</th>
-                            <th style={{ width: "25%" }}>PAXQ</th>
+                            <th style={{ width: "25%" }}>PAX NAME</th>
                             <th style={{ width: "30%" }}>DATE</th>
                             <th style={{ width: "25%" }}>AGENT</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {group.items.map((it, idx) => {
-                            const dot = formatDot(it.dot);
-                            const agent = it.agent ?? group.agent ?? "-";
+                          {(() => {
+                            const matchingSales = sales.filter(
+                              (sale) =>
+                                sale.sector?.trim() === group.sector?.trim() &&
+                                sale.dot?.trim() === group.dot?.trim() &&
+                                sale.airline?.trim() === group.airline?.trim()
+                            );
+
+                            if (matchingSales.length === 0) {
+                              return (
+                                <tr>
+                                  <td colSpan="4" className="text-danger">
+                                    No Sales
+                                  </td>
+                                </tr>
+                              );
+                            }
+
+                            const salesPerPage = 7;
+
+                            const salesPage = salesPageState[group.key] || 1;
+
+                            const start = (salesPage - 1) * salesPerPage;
+                            const paginatedSales = matchingSales.slice(
+                              start,
+                              start + salesPerPage
+                            );
+
+                            const totalSalesPages = Math.ceil(
+                              matchingSales.length / salesPerPage
+                            );
+
+                            const goToPage = (p) => {
+                              setSalesPageState((prev) => ({
+                                ...prev,
+                                [group.key]: p,
+                              }));
+                            };
 
                             return (
-                              <tr key={it.id ?? idx}>
-                                <td>{idx + 1}</td>
-                                <td>
-                                  {group.items.reduce(
-                                    (sum, item) =>
-                                      sum +
-                                      ((parseInt(item.pax, 10) || 0) -
-                                        (parseInt(item.sold, 10) || 0)),
-                                    0
-                                  )}{" "}
-                                </td>
-                                <td style={{ whiteSpace: "nowrap" }}>{dot}</td>
-                                <td>{agent !== "-" ? agent : "-"}</td>
-                              </tr>
+                              <>
+                                {Array.isArray(paginatedSales) &&
+                                paginatedSales.length > 0 ? (
+                                  paginatedSales.map((sale, idx) => (
+                                    <tr key={sale.id ?? idx}>
+                                      <td>{start + idx + 1}</td>
+                                      <td>{sale.pax ?? "-"}</td>
+                                      <td style={{ whiteSpace: "nowrap" }}>
+                                        {formatDot(
+                                          sale.dotb ?? sale.dot ?? "-"
+                                        )}
+                                      </td>
+                                      <td>{sale.agent ?? "-"}</td>
+                                    </tr>
+                                  ))
+                                ) : (
+                                  <tr>
+                                    <td colSpan="4" className="text-danger">
+                                      No Sales Available
+                                    </td>
+                                  </tr>
+                                )}
+
+                                {matchingSales.length > salesPerPage && (
+                                  <tr>
+                                    <td colSpan="4" className="text-center p-2">
+                                      <button
+                                        className="btn btn-sm btn-success mx-1"
+                                        disabled={salesPage === 1}
+                                        onClick={() =>
+                                          goToPage(Math.max(1, salesPage - 1))
+                                        }
+                                      >
+                                        Prev
+                                      </button>
+
+                                      <span className="small text-dark mx-2">
+                                        Page {salesPage} of {totalSalesPages}
+                                      </span>
+
+                                      <button
+                                        className="btn btn-sm btn-success mx-1"
+                                        disabled={salesPage === totalSalesPages}
+                                        onClick={() =>
+                                          goToPage(
+                                            Math.min(
+                                              totalSalesPages,
+                                              salesPage + 1
+                                            )
+                                          )
+                                        }
+                                      >
+                                        Next
+                                      </button>
+                                    </td>
+                                  </tr>
+                                )}
+                              </>
                             );
-                          })}
+                          })()}
                         </tbody>
                       </table>
                     </div>
@@ -398,15 +690,15 @@ function StockManagement() {
           );
         })}
 
-        {groupedByHeader.length === 0 && (
+        {filteredGroups.length === 0 && (
           <div className="col-12 text-center text-danger">
             No stocks available.
           </div>
         )}
       </div>
 
-      {groupedByHeader && groupedByHeader.length > itemsPerPage && (
-        <div className="d-flex justify-content-center gap-2 align-items-center mt-3">
+      {filteredGroups && filteredGroups.length > itemsPerPage && (
+        <div className="d-flex justify-content-center gap-2 align-items-center mt-0 mb-1">
           <button
             type="button"
             className="btn btn-sm btn-success"

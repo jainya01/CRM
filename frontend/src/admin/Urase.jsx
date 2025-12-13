@@ -87,8 +87,36 @@ function Urase() {
   const [staffList, setStaffList] = useState([]);
   const [openIndex, setOpenIndex] = useState(null);
 
-  const toggleDropdown = (index) => {
+  const toggleDropdown = (index, message) => {
     setOpenIndex(openIndex === index ? null : index);
+
+    const lastRead =
+      parseInt(localStorage.getItem("lastReadURASECreatedAt")) || 0;
+
+    const msgTime = new Date(message.created_at).getTime();
+    if (msgTime > lastRead) {
+      localStorage.setItem("lastReadURASECreatedAt", msgTime);
+    }
+
+    // remove from active list
+    const activeIds = (localStorage.getItem("uraseIds") || "")
+      .split(",")
+      .filter(Boolean)
+      .map(Number)
+      .filter((id) => id !== message.id);
+
+    localStorage.setItem("uraseIds", activeIds.join(","));
+
+    const blocked = new Set(
+      (localStorage.getItem("uraseBlockedIds") || "")
+        .split(",")
+        .filter(Boolean)
+        .map(Number)
+    );
+
+    blocked.add(message.id);
+
+    localStorage.setItem("uraseBlockedIds", [...blocked].join(","));
   };
 
   useEffect(() => {
@@ -100,7 +128,33 @@ function Urase() {
           signal: controller.signal,
         });
 
-        setStaffList(response.data?.data || response.data || []);
+        const data = response.data?.data || [];
+
+        const existingIds = (localStorage.getItem("uraseIds") || "")
+          .split(",")
+          .filter(Boolean)
+          .map(Number);
+
+        const blockedIds = new Set(
+          (localStorage.getItem("uraseBlockedIds") || "")
+            .split(",")
+            .filter(Boolean)
+            .map(Number)
+        );
+
+        // ❗ blocked IDs will NEVER be re-added
+        const newIds = data
+          .map((item) => item.id)
+          .filter((id) => !existingIds.includes(id) && !blockedIds.has(id));
+
+        if (newIds.length > 0) {
+          localStorage.setItem(
+            "uraseIds",
+            [...existingIds, ...newIds].join(",")
+          );
+        }
+
+        setStaffList(data); // UI untouched
       } catch (error) {
         if (axios.isCancel?.(error)) {
           console.log("FetchAllOtbs cancelled");
@@ -112,11 +166,8 @@ function Urase() {
 
     fetchOtbData();
 
-    const interval = setInterval(fetchOtbData, 500);
-
     return () => {
       controller.abort();
-      clearInterval(interval);
     };
   }, [API_URL]);
 
@@ -262,7 +313,7 @@ function Urase() {
 
   const deleteData = async (id) => {
     if (!id) return;
-    if (!window.confirm("Delete this OTB notification?")) return;
+    if (!window.confirm("Delete this Urase notification?")) return;
 
     try {
       const resp = await axios.delete(`${API_URL}/otbdelete/${id}`);
@@ -285,7 +336,7 @@ function Urase() {
     }
   };
 
-  const itemsPerPage = 30;
+  const itemsPerPage = 36;
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = useMemo(() => {
@@ -388,15 +439,14 @@ function Urase() {
                             <th
                               colSpan={4}
                               className="item-color text-start px-2 py-2 size-text"
-                              onClick={() => toggleDropdown(globalIndex)}
+                              onClick={() =>
+                                toggleDropdown(globalIndex, agentItem)
+                              }
                               style={{ cursor: "pointer" }}
                             >
                               You have sent an email by{" "}
                               {agentItem.agent_name || "Unknown Agent"}
-                              <div
-                                className="turq-caret float-end"
-                                style={{ cursor: "pointer" }}
-                              >
+                              <div className="turq-caret float-end">
                                 {openIndex === globalIndex ? "▴" : "▾"}
                               </div>
                             </th>
@@ -408,9 +458,6 @@ function Urase() {
                               <td>{agentItem.agent_name || "N/A"}</td>
                               <td>{agentItem.mail || "No Email"}</td>
                               <td>
-                                <span className="pointer-class text-success">
-                                  ✅
-                                </span>
                                 <span
                                   className="ms-2 pointer-class text-danger"
                                   onClick={() => deleteData(agentItem.id)}
@@ -433,7 +480,7 @@ function Urase() {
       </div>
 
       {totalPages > 1 && (
-        <div className="d-flex justify-content-center gap-2 align-items-center mt-3">
+        <div className="d-flex justify-content-center gap-2 align-items-center mt-0 mb-1">
           <button
             type="button"
             className="btn btn-sm btn-success"

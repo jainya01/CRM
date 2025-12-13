@@ -188,7 +188,7 @@ function Staff() {
       );
 
       if (response.data?.success) {
-        toast.success("Staff updated successfully");
+        toast.success("Staff credentials updated successfully");
 
         setStaffList((prev) => {
           const copy = [...prev];
@@ -260,6 +260,59 @@ function Staff() {
   useEffect(() => {
     setCurrentPage(1);
   }, [search]);
+
+  const [staff, setStaff] = useState([]);
+
+  useEffect(() => {
+    const allStaff = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/allstaffs`);
+
+        const list = res.data?.data || [];
+
+        const normalized = list.map((s) => ({
+          ...s,
+          can_view_fares: Number(s.can_view_fares) === 1 ? 1 : 0,
+        }));
+
+        setStaff(normalized);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    allStaff();
+  }, [API_URL]);
+
+  const updatePermission = async (agentId, value) => {
+    if (!agentId) return;
+
+    try {
+      await axios.put(`${API_URL}/staff/toggle/${agentId}`, {
+        field: "can_view_fares",
+        value,
+      });
+
+      setStaffList((prev) =>
+        prev.map((staff) => {
+          const id =
+            staff.raw?.id ?? staff.raw?.agent_id ?? staff.raw?.staff_id;
+          if (id === agentId) {
+            return {
+              ...staff,
+              raw: { ...staff.raw, can_view_fares: value },
+            };
+          }
+          return staff;
+        })
+      );
+
+      toast.success("Permission updated!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update permission");
+    }
+  };
 
   return (
     <div className="content-wrapper">
@@ -404,7 +457,7 @@ function Staff() {
                                       value={editValues.staff_agent}
                                       onChange={handleEditChange}
                                       className="form-control form-control-sm"
-                                      placeholder="Agent Name"
+                                      placeholder="Staff Name"
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   </div>
@@ -416,7 +469,7 @@ function Staff() {
                                       value={editValues.staff_email}
                                       onChange={handleEditChange}
                                       className="form-control form-control-sm"
-                                      placeholder="Agent Email"
+                                      placeholder="Staff Email"
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   </div>
@@ -463,32 +516,43 @@ function Staff() {
                                 >
                                   <Link
                                     className="text-danger text-decoration-none"
-                                    to="/admin/dashboard"
-                                  >
-                                    Can View Agents
-                                  </Link>
-                                </td>
-                                <td>
-                                  <span className="pointer-class">✅</span>
-                                  <span className="ms-2 pointer-class">❌</span>
-                                </td>
-                              </tr>
-
-                              <tr>
-                                <td
-                                  colSpan={2}
-                                  className="text-danger text-start ps-3"
-                                >
-                                  <Link
-                                    className="text-danger text-decoration-none"
-                                    to="/admin/dashboard"
+                                    to="/admin/agent"
                                   >
                                     Can View Fares
                                   </Link>
                                 </td>
+
                                 <td>
-                                  <span className="pointer-class">✅</span>
-                                  <span className="ms-2 pointer-class">❌</span>
+                                  <div className="checkbox-wrapper d-flex justify-content-center w-100">
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        Number(staff.raw?.can_view_fares) === 1
+                                      }
+                                      onChange={() => {
+                                        const agentId =
+                                          staff.raw?.id ??
+                                          staff.raw?.agent_id ??
+                                          staff.raw?.staff_id;
+
+                                        const newValue =
+                                          Number(staff.raw?.can_view_fares) ===
+                                          1
+                                            ? 0
+                                            : 1;
+
+                                        updatePermission(agentId, newValue);
+                                      }}
+                                      className="custom-checkbox-input"
+                                    />
+
+                                    {Number(staff.raw?.can_view_fares) ===
+                                      0 && (
+                                      <span className="checkbox-x fw-bolder">
+                                        ✕
+                                      </span>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             </>

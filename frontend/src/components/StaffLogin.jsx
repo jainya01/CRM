@@ -6,43 +6,43 @@ import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
-function AgentLogin() {
+function StaffLogin() {
   const API_URL = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
 
-  const [adminUsername, setAdminUsername] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
-  const [adminError, setAdminError] = useState("");
-  const [adminLoading, setAdminLoading] = useState(false);
-  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [staffEmail, setStaffEmail] = useState("");
+  const [staffPassword, setStaffPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleAdminLogin = async (e) => {
+  const handleStaffLogin = async (e) => {
     e.preventDefault();
-    setAdminError("");
-    setAdminLoading(true);
+    setError("");
+    setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/agentlogin`, {
-        agent_email: adminUsername,
-        agent_password: adminPassword,
+      const response = await axios.post(`${API_URL}/stafflogin`, {
+        staff_email: staffEmail,
+        staff_password: staffPassword,
       });
 
       if (response.status === 200) {
-        const agent = response.data?.agent ?? null;
+        const staff = response.data?.staff ?? null;
         const token = response.data?.token ?? null;
 
         localStorage.setItem("isAuthenticated", "true");
 
-        if (token) localStorage.setItem("agentToken", token);
-        if (agent) {
-          localStorage.setItem("agentUser", JSON.stringify(agent));
+        if (token) localStorage.setItem("staffToken", token);
+        if (staff) {
+          localStorage.setItem("staffUser", JSON.stringify(staff));
           localStorage.setItem(
-            "agentRole",
-            String(agent.role || "agent").toLowerCase()
+            "staffRole",
+            String(staff.role || "staff").toLowerCase()
           );
         }
 
-        localStorage.setItem("role", "agent");
+        localStorage.setItem("role", "staff");
 
         navigate("/admin/dashboard");
         return;
@@ -50,9 +50,9 @@ function AgentLogin() {
     } catch (err) {
       const msg =
         err.response?.data?.message || "Server error. Please try again";
-      setAdminError(msg);
+      setError(msg);
     } finally {
-      setAdminLoading(false);
+      setLoading(false);
     }
   };
 
@@ -64,7 +64,7 @@ function AgentLogin() {
             <Link to="/">
               <img
                 src={User}
-                alt="Admin Logo"
+                alt="Staff Logo"
                 className="mb-1 crm-logo"
                 loading="eager"
                 fetchPriority="high"
@@ -72,18 +72,18 @@ function AgentLogin() {
                 height={100}
               />
             </Link>
-            <h4 className="text-secondary fw-semibold">Agent Login</h4>
+            <h4 className="text-secondary fw-semibold">Staff Login</h4>
           </div>
 
-          <form onSubmit={handleAdminLogin} className="login-form">
+          <form onSubmit={handleStaffLogin} className="login-form">
             <div className="mb-3">
               <label className="form-label fw-medium">Email or Username</label>
               <input
                 type="text"
                 placeholder="Enter your email or username"
                 className="form-control form-control-fields rounded-5"
-                value={adminUsername}
-                onChange={(e) => setAdminUsername(e.target.value)}
+                value={staffEmail}
+                onChange={(e) => setStaffEmail(e.target.value)}
                 required
               />
             </div>
@@ -92,29 +92,40 @@ function AgentLogin() {
               <label className="form-label fw-medium">Password</label>
               <div className="position-relative">
                 <input
-                  type={showAdminPassword ? "text" : "password"}
+                  type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   className="form-control form-control-fields rounded-5 pe-5"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
+                  value={staffPassword}
+                  onChange={(e) => setStaffPassword(e.target.value)}
                   required
                 />
                 <FontAwesomeIcon
-                  icon={showAdminPassword ? faEyeSlash : faEye}
+                  icon={showPassword ? faEyeSlash : faEye}
                   className="password-toggle-icon"
-                  onClick={() => setShowAdminPassword((v) => !v)}
+                  onClick={() => setShowPassword((v) => !v)}
                 />
               </div>
-              {adminError && <p className="text-danger mt-2">{adminError}</p>}
+              {error && <p className="text-danger mt-2">{error}</p>}
             </div>
 
+
+
+
+
             <div className="d-grid gap-2">
-              <button type="submit" className="btn btn-admin-login">
-                Agent Login
+              <button
+                type="submit"
+                className="btn btn-admin-login"
+                disabled={loading}
+              >
+                {loading ? "Logging in..." : "Staff Login"}
               </button>
               <Link to="/" className="btn btn-admin-login">
                 Back
               </Link>
+
+
+
             </div>
           </form>
         </div>
@@ -123,4 +134,4 @@ function AgentLogin() {
   );
 }
 
-export default AgentLogin;
+export default StaffLogin;

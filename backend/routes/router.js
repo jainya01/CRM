@@ -5,21 +5,30 @@ import jwt from "jsonwebtoken";
 import { promises as fsp } from "fs";
 import bcrypt from "bcrypt";
 import path from "path";
+import { fileURLToPath } from "url";
+import XLSX from "xlsx";
 import pool from "../config/db.js";
 
 dotenv.config();
 const router = express.Router();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const uploadDir = path.join(__dirname, "../uploads");
+fsp.mkdir(uploadDir, { recursive: true }).catch(console.error);
+await fsp.mkdir(uploadDir, { recursive: true }).catch(console.error);
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads/");
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
   },
 });
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
 router.post("/adminlogin", async (req, res) => {
   try {
@@ -280,6 +289,78 @@ router.post("/agentlogin", async (req, res) => {
   }
 });
 
+router.post("/stafflogin", async (req, res) => {
+  try {
+    const { staff_email, staff_password } = req.body;
+
+    if (!staff_email || !staff_password) {
+      return res
+        .status(400)
+        .json({ message: "Staff email and password are required." });
+    }
+
+    const [rows] = await pool.query(
+      "SELECT * FROM staff WHERE staff_email = ? LIMIT 1",
+      [staff_email]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    const staff = rows[0];
+
+    let isMatch = false;
+
+    if (staff.staff_password && staff.staff_password.length > 0) {
+      try {
+        isMatch = await bcrypt.compare(staff_password, staff.staff_password);
+      } catch (err) {
+        isMatch = false;
+      }
+    }
+
+    if (!isMatch && staff.staff_password === staff_password) {
+      isMatch = true;
+    }
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error(
+        "JWT_SECRET is not defined in your environment variables."
+      );
+    }
+
+    const token = jwt.sign(
+      {
+        id: staff.id,
+        email: staff.staff_email,
+        role: "staff",
+      },
+      secret,
+      { expiresIn: "8h" }
+    );
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      staff: {
+        id: staff.id,
+        email: staff.staff_email,
+        name: staff.name,
+        role: "staff",
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.post("/stockpost", async (req, res) => {
   try {
     const { sector, pax, dot, fare, airline, pnr } = req.body;
@@ -330,7 +411,8 @@ router.get("/allstocks", async (req, res) => {
     const offset = (page - 1) * limit;
 
     const sql = `
-      SELECT id, sector, pax, sold, dot, fare, airline, pnr, created_at, updated_at
+      SELECT 
+        id, sector, pax, sold, (pax - sold) AS seats_left, dot, fare, airline, pnr, created_at, updated_at
       FROM stock
       WHERE (pax - sold) > 0
       ORDER BY id DESC
@@ -339,17 +421,12 @@ router.get("/allstocks", async (req, res) => {
 
     const [rows] = await pool.execute(sql);
 
-    const updatedRows = rows.map((item) => ({
-      ...item,
-      pax: item.pax - item.sold,
-    }));
-
     return res.status(200).json({
       success: true,
-      count: updatedRows.length,
+      count: rows.length,
       page,
       limit,
-      data: updatedRows,
+      data: rows,
     });
   } catch (error) {
     console.error("❌ Server error:", error);
@@ -761,7 +838,7 @@ router.put("/editagent/:id", async (req, res) => {
 
       return res.json({
         success: true,
-        message: "Agent updated successfully",
+        message: "Agent credentials updated successfully",
       });
     } finally {
       connection.release();
@@ -813,7 +890,7 @@ router.put("/editstaff/:id", async (req, res) => {
 
       return res.json({
         success: true,
-        message: "Staff updated successfully",
+        message: "Staff credentials updated successfully",
       });
     } finally {
       connection.release();
@@ -824,6 +901,33 @@ router.put("/editstaff/:id", async (req, res) => {
       success: false,
       message: "Server error",
     });
+  }
+});
+
+router.put("/staff/toggle/:id", async (req, res) => {
+  const agentId = req.params.id;
+  const { field, value } = req.body;
+
+  const allowedFields = ["can_view_fares"];
+  if (!allowedFields.includes(field)) {
+    return res.status(400).json({ message: "Invalid field" });
+  }
+
+  try {
+    const sql = `UPDATE staff SET ${field} = ? WHERE id = ?`;
+    const [result] = await pool.query(sql, [value, agentId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Agent not found" });
+    }
+
+    res.json({
+      message: "Updated successfully",
+      newValue: value,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -1153,6 +1257,132 @@ router.delete("/emaildelete/:id", async (req, res) => {
       success: false,
       message: "Server error",
     });
+  }
+});
+
+function excelSerialToJSDate(serial) {
+  const utcDays = serial - 25569;
+  const utcValue = utcDays * 86400 * 1000;
+  return new Date(utcValue);
+}
+
+function formatDateToDDMMYYYY(d) {
+  if (!d || !(d instanceof Date) || isNaN(d.getTime())) return null;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+function parseDotValue(dot) {
+  if (dot == null) return null;
+
+  if (typeof dot === "number" && !Number.isNaN(dot)) {
+    try {
+      const jsDate = excelSerialToJSDate(dot);
+      return formatDateToDDMMYYYY(jsDate);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  if (typeof dot === "string") {
+    const s = dot.trim();
+    const match = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+    if (match) {
+      let [, dd, mm, yyyy] = match;
+      if (yyyy.length === 2) {
+        yyyy = "20" + yyyy;
+      }
+      const day = parseInt(dd, 10);
+      const month = parseInt(mm, 10);
+      const year = parseInt(yyyy, 10);
+      const jsDate = new Date(year, month - 1, day);
+      return formatDateToDDMMYYYY(jsDate);
+    }
+
+    const isoTry = s.replace(" ", "T");
+    const jsDate = new Date(isoTry);
+    if (!isNaN(jsDate.getTime())) {
+      return formatDateToDDMMYYYY(jsDate);
+    }
+
+    const jsDate2 = new Date(s);
+    if (!isNaN(jsDate2.getTime())) {
+      return formatDateToDDMMYYYY(jsDate2);
+    }
+
+    return s;
+  }
+
+  return null;
+}
+
+router.post("/upload-stock", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const filePath = path.join(uploadDir, req.file.filename);
+    const workbook = XLSX.readFile(filePath, { cellDates: false, raw: true });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    const rawRows = XLSX.utils.sheet_to_json(sheet, {
+      defval: null,
+      raw: true,
+    });
+    if (!Array.isArray(rawRows) || rawRows.length === 0) {
+      return res.status(400).json({ error: "Excel file is empty" });
+    }
+
+    const expected = ["sector", "pax", "dot", "fare", "airline", "pnr"];
+
+    const normalizeRow = (row) => {
+      const keyMap = {};
+      Object.keys(row).forEach((k) => {
+        if (k == null) return;
+        const normalizedKey = String(k).trim().toLowerCase();
+        keyMap[normalizedKey] = k;
+      });
+
+      const out = {};
+      for (const col of expected) {
+        if (keyMap[col]) {
+          out[col] = row[keyMap[col]];
+          continue;
+        }
+
+        const alt = Object.keys(keyMap).find((lk) => lk === col.toLowerCase());
+        out[col] = alt ? row[keyMap[alt]] : null;
+      }
+
+      return out;
+    };
+
+    for (const rawRow of rawRows) {
+      const { sector, pax, dot, fare, airline, pnr } = normalizeRow(rawRow);
+
+      let paxVal = pax;
+      let fareVal = fare;
+      if (typeof paxVal === "string")
+        paxVal = paxVal.trim() === "" ? null : Number(paxVal);
+      if (typeof fareVal === "string")
+        fareVal = fareVal.trim() === "" ? null : Number(fareVal);
+
+      const formattedDot = parseDotValue(dot);
+
+      await pool.query(
+        `INSERT INTO stock (sector, pax, dot, fare, airline, pnr) VALUES (?, ?, ?, ?, ?, ?)`,
+        [sector, paxVal, formattedDot, fareVal, airline, pnr]
+      );
+    }
+
+    return res.status(200).json({ message: "Bulk data added successfully" });
+  } catch (err) {
+    console.error("Upload error:", err);
+    return res
+      .status(500)
+      .json({ error: "Something went wrong while uploading" });
   }
 });
 

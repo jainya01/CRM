@@ -1,5 +1,5 @@
-import axios from "axios";
 import { useEffect, useMemo, useRef, useState } from "react";
+import axios from "axios";
 import {
   LineChart,
   Line,
@@ -24,7 +24,8 @@ function Dashboard() {
   const [chartData, setChartData] = useState([]);
   const [showDate, setShowDate] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 9;
+  const [salesPageState, setSalesPageState] = useState({});
 
   function isDotExpired(dateString) {
     if (!dateString) return false;
@@ -75,77 +76,102 @@ function Dashboard() {
       return new Date(now.getFullYear(), now.getMonth(), now.getDate());
     };
 
-    const parseLocalDate = (ymd) => {
-      if (!ymd) return null;
-      const p = ymd.split("-");
-      if (p.length !== 3) return null;
-      return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+    const parseLocalDate = (dot) => {
+      if (!dot) return null;
+      const s = String(dot).trim();
+      const parts = s.split("-");
+      if (parts.length !== 3) return null;
+
+      let y, m, d;
+      if (parts[0].length === 4) {
+        y = parseInt(parts[0], 10);
+        m = parseInt(parts[1], 10) - 1;
+        d = parseInt(parts[2], 10);
+      } else {
+        d = parseInt(parts[0], 10);
+        m = parseInt(parts[1], 10) - 1;
+        y = parseInt(parts[2], 10);
+        if (y < 100) y = y < 70 ? 2000 + y : 1900 + y;
+      }
+
+      const dt = new Date(y, m, d);
+      return isNaN(dt.getTime()) ? null : dt;
     };
 
     const isDotExpiredLocal = (dot) => {
       const date = parseLocalDate(dot);
       if (!date) return false;
-      return date < getToday();
+      const cmp = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const today = getToday();
+      return cmp < today;
     };
 
-    const stockData = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get(`${API_URL}/allstocks`, {
-          signal: controller.signal,
-        });
-
-        const data = Array.isArray(response.data?.data)
-          ? response.data.data
-          : [];
+        const [stocksRes, salesRes] = await Promise.all([
+          axios.get(`${API_URL}/allstocks`, { signal: controller.signal }),
+          axios.get(`${API_URL}/allsales`, { signal: controller.signal }),
+        ]);
 
         if (!mounted) return;
 
-        setStockList(data);
+        const stockData = Array.isArray(stocksRes.data?.data)
+          ? stocksRes.data.data
+          : [];
 
-        const nonExpired = data.filter((item) => !isDotExpiredLocal(item.dot));
+        const salesData = Array.isArray(salesRes.data?.data)
+          ? salesRes.data.data
+          : [];
 
-        setFilteredStockList(nonExpired);
+        setStockList(stockData);
+        setSales(salesData);
+
+        const nonExpiredStocks = stockData.filter(
+          (item) => !isDotExpiredLocal(item.dot)
+        );
+
+        const latestSaleMap = {};
+        salesData.forEach((s) => {
+          if (!s.stock_id) return;
+          const t = new Date(s.updated_at || s.created_at || 0).getTime();
+
+          if (!latestSaleMap[s.stock_id] || t > latestSaleMap[s.stock_id]) {
+            latestSaleMap[s.stock_id] = t;
+          }
+        });
+
+        const sortedStocks = [...nonExpiredStocks].sort((a, b) => {
+          const aSaleTime = latestSaleMap[a.id] || 0;
+          const bSaleTime = latestSaleMap[b.id] || 0;
+
+          const aStockTime = new Date(
+            a.updated_at || a.created_at || 0
+          ).getTime();
+
+          const bStockTime = new Date(
+            b.updated_at || b.created_at || 0
+          ).getTime();
+
+          const aFinalTime = Math.max(aSaleTime, aStockTime);
+          const bFinalTime = Math.max(bSaleTime, bStockTime);
+
+          return bFinalTime - aFinalTime;
+        });
+
+        setFilteredStockList(sortedStocks);
       } catch (error) {
-        if (axios.isCancel(error)) {
-          console.log("Stock request cancelled");
-        } else {
-          console.error("Error fetching stocks", error);
+        if (!axios.isCancel(error)) {
           setStockList([]);
           setFilteredStockList([]);
-        }
-      }
-    };
-
-    stockData();
-
-    return () => {
-      mounted = false;
-      controller.abort();
-    };
-  }, [API_URL]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const fetchSales = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/allsales`, {
-          signal: controller.signal,
-        });
-        setSales(Array.isArray(response.data?.data) ? response.data.data : []);
-      } catch (error) {
-        if (axios.isCancel(error)) {
-          console.log("Sales request cancelled:", error.message);
-        } else {
-          console.error("Error fetching sales:", error);
           setSales([]);
         }
       }
     };
 
-    fetchSales();
+    fetchData();
 
     return () => {
+      mounted = false;
       controller.abort();
     };
   }, [API_URL]);
@@ -339,17 +365,33 @@ function Dashboard() {
     e.preventDefault();
 
     const sectorQuery = (stock.sector || "").trim().toLowerCase();
-    const dotQuery = (stock.dot || "").trim().toLowerCase();
+    const dotQueryRaw = (stock.dot || "").trim();
 
-    const filtered = stockList.filter((s) => {
+    let dotQueryFormatted = "";
+    if (dotQueryRaw) {
+      const parsedQ = parseToDateObj(dotQueryRaw);
+      if (parsedQ) {
+        dotQueryFormatted = formatDateDisplay(parsedQ).toLowerCase();
+      } else {
+        dotQueryFormatted = dotQueryRaw.toLowerCase();
+      }
+    }
+
+    const filtered = (Array.isArray(stockList) ? stockList : []).filter((s) => {
       if (isDotExpired(s.dot)) return false;
 
-      const sDot = (s.dot || "").toLowerCase();
-      const dotQuery = (stock.dot || "").trim().toLowerCase();
-      return (
-        (s.sector || "").toLowerCase().includes(sectorQuery) &&
-        sDot.includes(dotQuery)
-      );
+      const sSector = (s.sector || "").toLowerCase();
+      const sDotDisplay = (
+        formatDateDisplay(parseToDateObj(s.dot)) || ""
+      ).toLowerCase();
+
+      const matchesSector = sectorQuery ? sSector.includes(sectorQuery) : true;
+
+      const matchesDot = dotQueryFormatted
+        ? sDotDisplay.includes(dotQueryFormatted)
+        : true;
+
+      return matchesSector && matchesDot;
     });
 
     setFilteredStockList(filtered);
@@ -376,64 +418,167 @@ function Dashboard() {
     }, 0);
   }, [filteredStockList]);
 
-  function formatDot(dotValue) {
-    if (!dotValue) return "";
-    const isoMatch = /^\d{4}-\d{2}-\d{2}$/.test(String(dotValue).trim());
-    const iso = isoMatch ? String(dotValue).trim() : null;
+  function parseToDateObj(value) {
+    if (!value) return null;
 
-    const date = iso ? new Date(iso + "T00:00:00") : new Date(String(dotValue));
-    if (isNaN(date.getTime())) return String(dotValue);
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
 
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = date
-      .toLocaleString("en-GB", { month: "short" })
-      .toUpperCase();
-    const year = date.getFullYear();
+    if (typeof value === "number" && !isNaN(value)) {
+      const utcDays = value - 25569;
+      const utcValue = utcDays * 86400 * 1000;
+      const d = new Date(utcValue);
+      return isNaN(d.getTime()) ? null : d;
+    }
 
+    if (typeof value === "object" && value.v) {
+      const d = new Date(value.v);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    if (typeof value === "string") {
+      const s = value.trim();
+
+      const ydmMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (ydmMatch) {
+        const [_, y, d, m] = ydmMatch.map(Number);
+        if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+          return new Date(y, m - 1, d);
+        }
+      }
+
+      const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (isoMatch) {
+        const [_, y, m, d] = isoMatch.map(Number);
+        if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+          return new Date(y, m - 1, d);
+        }
+      }
+
+      const m2 = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+      if (m2) {
+        let [_, p1, p2, p3] = m2;
+        if (p3.length === 2) p3 = Number(p3) < 70 ? "20" + p3 : "19" + p3;
+        const day = parseInt(p1, 10);
+        const month = parseInt(p2, 10);
+        const year = parseInt(p3, 10);
+        return new Date(year, month - 1, day);
+      }
+
+      const fb = new Date(s);
+      if (!isNaN(fb.getTime())) return fb;
+    }
+
+    return null;
+  }
+
+  function formatDateDisplay(d) {
+    if (!d || !(d instanceof Date) || isNaN(d.getTime())) return "-";
+    const day = String(d.getDate()).padStart(2, "0");
+    const monthNames = [
+      "JAN",
+      "FEB",
+      "MAR",
+      "APR",
+      "MAY",
+      "JUN",
+      "JUL",
+      "AUG",
+      "SEP",
+      "OCT",
+      "NOV",
+      "DEC",
+    ];
+    const month = monthNames[d.getMonth()];
+    const year = d.getFullYear();
     return `${day} ${month} ${year}`;
   }
+
+  function formatDot(value) {
+    const d = parseToDateObj(value);
+    return formatDateDisplay(d);
+  }
+
+  const [role, setRole] = useState("");
+  const [staff, setStaff] = useState([]);
 
   const [permissions, setPermissions] = useState({
     can_view_agents: 0,
     can_view_fares: 0,
   });
-  const [role, setRole] = useState("");
 
   useEffect(() => {
-    const fetchPermissions = async () => {
-      const storedAgent = JSON.parse(localStorage.getItem("agentUser"));
-      const storedAdmin = JSON.parse(localStorage.getItem("adminUser"));
+    let isMounted = true;
 
-      if (storedAdmin) {
-        setRole(storedAdmin.role);
-        setPermissions({
-          can_view_agents: 1,
-          can_view_fares: 1,
-        });
-        return;
-      }
-
-      if (!storedAgent) return;
-      setRole(storedAgent.role);
-
+    const initAuth = async () => {
       try {
-        const res = await axios.get(`${API_URL}/allagents`);
-        const agents = res.data.data;
-        const loggedInAgent = agents.find((a) => a.id === storedAgent.id);
+        const staffResponse = await axios.get(`${API_URL}/allstaffs`);
+        const staffs = staffResponse.data?.data || staffResponse.data || [];
 
-        if (loggedInAgent) {
-          setPermissions({
-            can_view_agents: loggedInAgent.can_view_agents,
-            can_view_fares: loggedInAgent.can_view_fares,
-          });
+        if (isMounted) {
+          setStaff(staffs);
+        }
+
+        const admin = JSON.parse(localStorage.getItem("adminUser"));
+        const staffUser = JSON.parse(localStorage.getItem("staffUser"));
+        const agentUser = JSON.parse(localStorage.getItem("agentUser"));
+
+        if (agentUser) {
+          if (isMounted) setRole("agent");
+
+          const agentRes = await axios.get(`${API_URL}/allagents`);
+          const agents = agentRes.data?.data || [];
+
+          const me = agents.find((a) => String(a.id) === String(agentUser.id));
+
+          if (isMounted) {
+            setPermissions({
+              can_view_agents: Number(me?.can_view_agents) || 0,
+              can_view_fares: Number(me?.can_view_fares) || 0,
+            });
+          }
+          return;
+        }
+
+        if (admin) {
+          if (isMounted) {
+            setRole("admin");
+            setPermissions({ can_view_agents: 1, can_view_fares: 1 });
+          }
+          return;
+        }
+
+        if (staffUser) {
+          if (isMounted) setRole("staff");
+
+          const me = staffs.find((s) => String(s.id) === String(staffUser.id));
+
+          if (isMounted) {
+            setPermissions({
+              can_view_fares: Number(me?.can_view_fares) || 0,
+            });
+          }
+          return;
+        }
+
+        if (isMounted) {
+          setRole("");
+          setPermissions({ can_view_agents: 0, can_view_fares: 0 });
         }
       } catch (err) {
-        console.error("Failed to fetch agent permissions", err);
+        console.error("Auth init failed:", err);
+        if (isMounted) {
+          setRole("");
+          setPermissions({ can_view_agents: 0, can_view_fares: 0 });
+        }
       }
     };
 
-    fetchPermissions();
-  }, []);
+    initAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [API_URL]);
 
   return (
     <div className="content-wrapper">
@@ -533,19 +678,33 @@ function Dashboard() {
         <div className="row">
           <div className="col-12 col-lg-8 mb-4">
             <div className="chart-wrapper ps-0">
-              <ResponsiveContainer width="100%" height={700}>
-                <LineChart data={chartData}>
+              <ResponsiveContainer width="100%" height={680}>
+                <LineChart
+                  data={chartData}
+                  margin={{ top: 0, right: 20, bottom: 20, left: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
 
                   <XAxis dataKey="year" />
+
                   <YAxis
+                    tickFormatter={(value) =>
+                      value >= 1000000
+                        ? `${value / 1000000}M`
+                        : value >= 1000
+                        ? `${value / 1000}K`
+                        : value
+                    }
                     label={{
                       angle: -90,
                       position: "insideLeft",
+                      offset: 0,
                     }}
                   />
 
-                  <Tooltip />
+                  <Tooltip
+                    formatter={(value) => new Intl.NumberFormat().format(value)}
+                  />
                   <Legend />
 
                   <Line
@@ -553,7 +712,7 @@ function Dashboard() {
                     dataKey="sell"
                     stroke="#8884d8"
                     strokeWidth={3}
-                    activeDot={{ r: 6 }}
+                    activeDot={{ r: 6, stroke: "none" }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -575,22 +734,53 @@ function Dashboard() {
               paginatedList.map((item, idx) => {
                 const serial = (currentPage - 1) * itemsPerPage + idx + 1;
 
+                const toIntOrNull = (v) => {
+                  if (v === null || v === undefined) return null;
+                  const n = Number(String(v).trim());
+                  if (!Number.isFinite(n)) return null;
+                  const i = Math.trunc(n);
+                  return Number.isNaN(i) ? null : i;
+                };
+
+                const hasTopPaxKey = Object.prototype.hasOwnProperty.call(
+                  item,
+                  "pax"
+                );
+                const hasTopSoldKey = Object.prototype.hasOwnProperty.call(
+                  item,
+                  "sold"
+                );
+
+                const topPax = hasTopPaxKey ? toIntOrNull(item.pax) : null;
+                const topSold = hasTopSoldKey ? toIntOrNull(item.sold) : null;
+
                 let totalSeats = 0;
                 let seatsSold = 0;
-                if (Array.isArray(item.items) && item.items.length > 0) {
+
+                if (topPax !== null) {
+                  totalSeats = topPax;
+                } else if (Array.isArray(item.items) && item.items.length > 0) {
                   totalSeats = item.items.reduce(
-                    (sum, it) => sum + (parseInt(it.pax, 10) || 0),
-                    0
-                  );
-                  seatsSold = item.items.reduce(
-                    (sum, it) => sum + (parseInt(it.sold, 10) || 0),
+                    (sum, it) => sum + (toIntOrNull(it.pax) ?? 0),
                     0
                   );
                 } else {
-                  totalSeats = parseInt(item.pax, 10) || 0;
-                  seatsSold = parseInt(item.sold, 10) || 0;
+                  totalSeats = 0;
                 }
-                const seatsLeft = totalSeats - seatsSold;
+
+                if (topSold !== null) {
+                  seatsSold = topSold;
+                } else if (Array.isArray(item.items) && item.items.length > 0) {
+                  seatsSold = item.items.reduce(
+                    (sum, it) => sum + (toIntOrNull(it.sold) ?? 0),
+                    0
+                  );
+                } else {
+                  seatsSold = 0;
+                }
+
+                const rawSeatsLeft = totalSeats - seatsSold;
+                const seatsLeft = Math.max(0, rawSeatsLeft);
 
                 return (
                   <div key={item.id ?? serial} className="size-text mb-3">
@@ -620,8 +810,10 @@ function Dashboard() {
                           </span>
                           <span className="text-danger text-end">
                             <strong>COST:</strong>{" "}
-                            {role === "admin" ||
-                            permissions.can_view_fares === 1
+                            {role === "admin"
+                              ? item.fare + "/-"
+                              : (role === "staff" || role === "agent") &&
+                                permissions.can_view_fares === 1
                               ? item.fare + "/-"
                               : "***"}
                           </span>
@@ -645,26 +837,112 @@ function Dashboard() {
                             <thead className="table-light">
                               <tr>
                                 <th style={{ width: "15%" }}>SL. NO</th>
-                                <th style={{ width: "25%" }}>PAXQ</th>
+                                <th style={{ width: "25%" }}>PAX NAME</th>
                                 <th style={{ width: "30%" }}>DATE</th>
                                 <th style={{ width: "25%" }}>AGENT</th>
                               </tr>
                             </thead>
 
                             <tbody>
-                              <tr>
-                                <td>{serial}</td>
-                                <td>{seatsLeft}</td>
-                                <td style={{ whiteSpace: "nowrap" }}>
-                                  {formatDot(item.dot)}
-                                </td>
-                                <td>
-                                  {role === "admin" ||
-                                  permissions.can_view_agents === 1
-                                    ? item.agent || "-"
-                                    : "***"}
-                                </td>
-                              </tr>
+                              {(() => {
+                                const salesForStock = Array.isArray(sales)
+                                  ? sales.filter(
+                                      (s) =>
+                                        String(s.stock_id) === String(item.id)
+                                    )
+                                  : [];
+
+                                if (salesForStock.length === 0) {
+                                  return (
+                                    <tr>
+                                      <td
+                                        colSpan="4"
+                                        className="text-danger fw-bold"
+                                      >
+                                        No sales available
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+
+                                const salesPerPage = 7;
+
+                                const salesPage = salesPageState[item.id] || 1;
+
+                                const start = (salesPage - 1) * salesPerPage;
+                                const paginatedSales = salesForStock.slice(
+                                  start,
+                                  start + salesPerPage
+                                );
+
+                                const totalPages = Math.ceil(
+                                  salesForStock.length / salesPerPage
+                                );
+
+                                const goToPage = (p) => {
+                                  setSalesPageState((prev) => ({
+                                    ...prev,
+                                    [item.id]: p,
+                                  }));
+                                };
+
+                                return (
+                                  <>
+                                    {paginatedSales.map((sale, idx) => (
+                                      <tr key={`sale-${sale.id}-${idx}`}>
+                                        <td>{start + idx + 1}</td>
+                                        <td>{sale.pax ?? sale.name ?? "-"}</td>
+                                        <td style={{ whiteSpace: "nowrap" }}>
+                                          {formatDot(
+                                            sale.dotb ?? sale.dot ?? sale.dotb
+                                          )}
+                                        </td>
+                                        <td>
+                                          {role === "admin" || role === "staff"
+                                            ? sale.agent || "-"
+                                            : role === "agent" &&
+                                              permissions.can_view_agents === 1
+                                            ? sale.agent || "-"
+                                            : "***"}
+                                        </td>
+                                      </tr>
+                                    ))}
+
+                                    {salesForStock.length > salesPerPage && (
+                                      <tr>
+                                        <td
+                                          colSpan="4"
+                                          className="text-center p-2"
+                                        >
+                                          <button
+                                            className="btn btn-sm btn-success mx-1"
+                                            disabled={salesPage === 1}
+                                            onClick={() =>
+                                              goToPage(salesPage - 1)
+                                            }
+                                          >
+                                            Prev
+                                          </button>
+
+                                          <span className="small text-dark mx-2">
+                                            Page {salesPage} of {totalPages}
+                                          </span>
+
+                                          <button
+                                            className="btn btn-sm btn-success mx-1"
+                                            disabled={salesPage === totalPages}
+                                            onClick={() =>
+                                              goToPage(salesPage + 1)
+                                            }
+                                          >
+                                            Next
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </tbody>
                           </table>
                         </div>
@@ -684,7 +962,7 @@ function Dashboard() {
             )}
 
             {filteredStockList && filteredStockList.length > itemsPerPage && (
-              <div className="d-flex justify-content-center gap-2 align-items-center mt-3">
+              <div className="d-flex justify-content-center gap-2 align-items-center mt-0">
                 <button
                   type="button"
                   className="btn btn-sm btn-success pagination-button"
@@ -693,6 +971,10 @@ function Dashboard() {
                 >
                   Prev
                 </button>
+
+                <span className="px-2 small text-muted">
+                  Page {currentPage} of {totalPages}
+                </span>
 
                 <button
                   type="button"

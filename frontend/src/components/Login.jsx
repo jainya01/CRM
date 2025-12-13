@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import User from "../assets/Travel.png";
 import "../App.css";
@@ -28,12 +28,26 @@ const Login = () => {
           <h3 className="crm-title">Welcome to Travel CRM</h3>
           <p className="crm-subtitle">Choose your login to continue</p>
 
-          <div className="d-grid gap-3">
-            <Link to="/adminlogin" className="crm-btn-primary crm-btn text-decoration-none">
+          <div className="d-grid gap-3 crm-group">
+            <Link
+              to="/adminlogin"
+              className="crm-btn crm-btn-primary-default text-decoration-none"
+            >
               Admin Login
             </Link>
-            <Link to="/agentlogin" className="crm-btn-outline crm-btn text-decoration-none">
+
+            <Link
+              to="/agentlogin"
+              className="crm-btn crm-btn-outline-default text-decoration-none"
+            >
               Agent Login
+            </Link>
+
+            <Link
+              to="/stafflogin"
+              className="crm-btn crm-btn-outline-default text-decoration-none"
+            >
+              Staff Login
             </Link>
           </div>
         </div>

@@ -83,7 +83,7 @@ function SuggestionsPortal({
 }
 
 function Otb() {
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_URL; 
 
   const [staffList, setStaffList] = useState([]);
   const [openIndex, setOpenIndex] = useState(null);
@@ -289,7 +289,7 @@ function Otb() {
     }
   };
 
-  const itemsPerPage = 30;
+  const itemsPerPage = 36;
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = useMemo(() => {
@@ -412,9 +412,6 @@ function Otb() {
                               <td>{agentItem.agent_name || "N/A"}</td>
                               <td>{agentItem.mail || "No Email"}</td>
                               <td>
-                                <span className="pointer-class text-success">
-                                  ✅
-                                </span>
                                 <span
                                   className="ms-2 pointer-class text-danger"
                                   onClick={() => deleteData(agentItem.id)}
@@ -437,7 +434,7 @@ function Otb() {
       </div>
 
       {totalPages > 1 && (
-        <div className="d-flex justify-content-center gap-2 align-items-center mt-3">
+        <div className="d-flex justify-content-center gap-2 align-items-center mt-0 mb-1">
           <button
             type="button"
             className="btn btn-sm btn-success"
