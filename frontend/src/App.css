@@ -860,14 +860,11 @@ aside.admin-sidebar {
 }
 
 .portal-suggestion-box li {
-  display: block;
-  box-sizing: border-box;
+  display: flex;
+  align-items: center;
   padding: 10px 12px;
-  min-height: 36px;
-  line-height: 1.3;
+  line-height: 1.6;
   white-space: normal;
-  overflow: hidden;
-  cursor: pointer;
 }
 
 .portal-suggestion-box li:hover,

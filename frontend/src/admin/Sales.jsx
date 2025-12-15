@@ -705,6 +705,7 @@ function Sales() {
                   left: `${sectorCoords.left}px`,
                   width: `${sectorCoords.width}px`,
                   maxHeight: 320,
+                  lineHeight: 4.5,
                   overflowY: "auto",
                   background: "#fff",
                   boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
@@ -734,7 +735,7 @@ function Sales() {
                         cursor: "pointer",
                         padding: "10px 12px",
                         lineHeight: 1.3,
-                        minHeight: 36,
+                        wordBreak: "break-word",
                         boxSizing: "border-box",
                         whiteSpace: "normal",
                         overflow: "hidden",
@@ -841,7 +842,7 @@ function Sales() {
                       listStyle: "none",
                     }}
                   >
-                    {filteredAgents.length > 0 ? (
+                    {stock.agent && filteredAgents.length > 0 ? (
                       filteredAgents.map((a) => (
                         <li
                           key={a._id}
@@ -1170,16 +1171,6 @@ function Sales() {
           </button>
         </div>
       )}
-
-
-
-      {/* <div className="d-flex justify-content-center">
-        <div className="blink-box"></div>
-      </div> */}
-
-
-
-
 
       <ToastContainer position="bottom-right" autoClose={1000} />
     </div>
