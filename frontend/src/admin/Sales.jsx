@@ -43,7 +43,7 @@ function Sales() {
   const [sectorCoords, setSectorCoords] = useState(null);
   const [agentCoords, setAgentCoords] = useState(null);
   const [groupPages, setGroupPages] = useState({});
-  const itemsPerPage = 27;
+  const itemsPerPage = 30;
   const [currentPage, setCurrentPage] = useState(1);
 
   const setPageForGroup = (key, page) => {
@@ -373,7 +373,7 @@ function Sales() {
   useEffect(() => {
     const controller = new AbortController();
 
-    const allSales = async () => {
+    const fetchAllSales = async () => {
       try {
         const response = await axios.get(`${API_URL}/allsales`, {
           signal: controller.signal,
@@ -389,46 +389,16 @@ function Sales() {
       }
     };
 
-    allSales();
-
-    const interval = setInterval(allSales, 1000);
+    fetchAllSales();
 
     return () => {
       controller.abort();
-      clearInterval(interval);
     };
   }, [API_URL]);
 
   const toggleDropdown = (key) => {
     setOpenIndex(openIndex === key ? null : key);
   };
-
-  const groupedByHeader = (() => {
-    const map = new Map();
-    staff.forEach((item) => {
-      const sector = (item.sector ?? "").toString().trim();
-      const dot = (item.dot ?? "").toString().trim();
-      const airline = (item.airline ?? "").toString().trim();
-      const agent = (item.agent ?? "-").toString().trim() || "-";
-
-      const key = `${sector}||${dot}||${airline}||${agent}`;
-
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(item);
-    });
-
-    return Array.from(map.entries()).map(([key, items]) => {
-      const [sector, dot, airline, agent] = key.split("||");
-      return {
-        key,
-        sector,
-        dot,
-        airline,
-        agent,
-        items,
-      };
-    });
-  })();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
