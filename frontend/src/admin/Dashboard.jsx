@@ -421,51 +421,26 @@ function Dashboard() {
   function parseToDateObj(value) {
     if (!value) return null;
 
-    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
-
-    if (typeof value === "number" && !isNaN(value)) {
-      const utcDays = value - 25569;
-      const utcValue = utcDays * 86400 * 1000;
-      const d = new Date(utcValue);
-      return isNaN(d.getTime()) ? null : d;
-    }
-
-    if (typeof value === "object" && value.v) {
-      const d = new Date(value.v);
-      if (!isNaN(d.getTime())) return d;
-    }
+    if (value instanceof Date && !isNaN(value)) return value;
 
     if (typeof value === "string") {
       const s = value.trim();
 
-      const ydmMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-      if (ydmMatch) {
-        const [_, y, d, m] = ydmMatch.map(Number);
-        if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-          return new Date(y, m - 1, d);
-        }
-      }
-
       const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
       if (isoMatch) {
-        const [_, y, m, d] = isoMatch.map(Number);
-        if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-          return new Date(y, m - 1, d);
-        }
+        const [, y, m, d] = isoMatch.map(Number);
+        return new Date(y, m - 1, d);
       }
 
-      const m2 = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
-      if (m2) {
-        let [_, p1, p2, p3] = m2;
-        if (p3.length === 2) p3 = Number(p3) < 70 ? "20" + p3 : "19" + p3;
-        const day = parseInt(p1, 10);
-        const month = parseInt(p2, 10);
-        const year = parseInt(p3, 10);
-        return new Date(year, month - 1, day);
+      const dmY = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+      if (dmY) {
+        let [, d, m, y] = dmY;
+        y = y.length === 2 ? (Number(y) < 70 ? "20" + y : "19" + y) : y;
+        return new Date(Number(y), Number(m) - 1, Number(d));
       }
 
-      const fb = new Date(s);
-      if (!isNaN(fb.getTime())) return fb;
+      const fallback = new Date(s);
+      if (!isNaN(fallback)) return fallback;
     }
 
     return null;

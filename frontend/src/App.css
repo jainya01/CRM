@@ -862,8 +862,8 @@ aside.admin-sidebar {
 .portal-suggestion-box li {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
   line-height: 1.6;
+  padding: 10px 12px;
   white-space: normal;
 }
 

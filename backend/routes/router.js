@@ -1320,69 +1320,55 @@ function parseDotValue(dot) {
 
 router.post("/upload-stock", upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
     const filePath = path.join(uploadDir, req.file.filename);
-    const workbook = XLSX.readFile(filePath, { cellDates: false, raw: true });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
+    const workbook = XLSX.readFile(filePath, { raw: true });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
     const rawRows = XLSX.utils.sheet_to_json(sheet, {
       defval: null,
       raw: true,
     });
-    if (!Array.isArray(rawRows) || rawRows.length === 0) {
+
+    if (!rawRows.length) {
       return res.status(400).json({ error: "Excel file is empty" });
     }
 
-    const expected = ["sector", "pax", "dot", "fare", "airline", "pnr"];
+    const values = [];
 
-    const normalizeRow = (row) => {
-      const keyMap = {};
-      Object.keys(row).forEach((k) => {
-        if (k == null) return;
-        const normalizedKey = String(k).trim().toLowerCase();
-        keyMap[normalizedKey] = k;
-      });
+    for (const row of rawRows) {
+      const sector = row["Sector"] ?? row["sector"] ?? null;
+      const pax = row["PAX"] ? Number(row["PAX"]) : null;
+      const fare = row["Fare"] ? Number(row["Fare"]) : null;
+      const airline = row["Airline"] ?? null;
+      const pnr = row["PNR"] ?? null;
+      const dot = parseDotValue(row["Dot"]);
 
-      const out = {};
-      for (const col of expected) {
-        if (keyMap[col]) {
-          out[col] = row[keyMap[col]];
-          continue;
-        }
+      if (!sector || !dot) continue;
 
-        const alt = Object.keys(keyMap).find((lk) => lk === col.toLowerCase());
-        out[col] = alt ? row[keyMap[alt]] : null;
-      }
-
-      return out;
-    };
-
-    for (const rawRow of rawRows) {
-      const { sector, pax, dot, fare, airline, pnr } = normalizeRow(rawRow);
-
-      let paxVal = pax;
-      let fareVal = fare;
-      if (typeof paxVal === "string")
-        paxVal = paxVal.trim() === "" ? null : Number(paxVal);
-      if (typeof fareVal === "string")
-        fareVal = fareVal.trim() === "" ? null : Number(fareVal);
-
-      const formattedDot = parseDotValue(dot);
-
-      await pool.query(
-        `INSERT INTO stock (sector, pax, dot, fare, airline, pnr) VALUES (?, ?, ?, ?, ?, ?)`,
-        [sector, paxVal, formattedDot, fareVal, airline, pnr]
-      );
+      values.push([sector, pax, dot, fare, airline, pnr]);
     }
 
-    return res.status(200).json({ message: "Bulk data added successfully" });
+    if (!values.length) {
+      return res.status(400).json({ error: "No valid rows found" });
+    }
+
+    await pool.query(
+      `INSERT INTO stock (sector, pax, dot, fare, airline, pnr)
+       VALUES ?`,
+      [values]
+    );
+
+    return res.status(200).json({
+      message: "Bulk upload successful",
+      rowsInserted: values.length,
+    });
   } catch (err) {
     console.error("Upload error:", err);
-    return res
-      .status(500)
-      .json({ error: "Something went wrong while uploading" });
+    return res.status(500).json({ error: "Upload failed" });
   }
 });
 
