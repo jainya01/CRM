@@ -65,28 +65,38 @@ function StockManagement() {
   };
 
   useEffect(() => {
-    let mounted = true;
+    const controller = new AbortController();
 
     const fetchData = async () => {
       try {
-        const [stocks, sales] = await Promise.all([
-          axios.get(`${API_URL}/allstocks`),
-          axios.get(`${API_URL}/allsales`),
+        const [stocksResponse, salesResponse] = await Promise.all([
+          axios.get(`${API_URL}/allstocks`, { signal: controller.signal }),
+          axios.get(`${API_URL}/allsales`, { signal: controller.signal }),
         ]);
 
-        if (mounted) {
-          setStaff(stocks.data.data || []);
-          setSales(sales.data.data || []);
+        const stocksPayload = stocksResponse.data?.data ?? stocksResponse.data;
+        setStaff(Array.isArray(stocksPayload) ? stocksPayload : []);
+
+        const salesPayload = salesResponse.data?.data ?? salesResponse.data;
+        setSales(Array.isArray(salesPayload) ? salesPayload : []);
+      } catch (error) {
+        if (axios.isCancel(error)) {
+          console.log("Fetch request cancelled");
+        } else {
+          console.error("Error fetching data:", error);
+          setStaff([]);
+          setSales([]);
         }
-      } catch (e) {
-        console.error(e);
       }
     };
 
     fetchData();
 
+    const interval = setInterval(fetchData, 1000);
+
     return () => {
-      mounted = false;
+      controller.abort();
+      clearInterval(interval);
     };
   }, [API_URL]);
 

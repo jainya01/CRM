@@ -373,7 +373,7 @@ function Sales() {
   useEffect(() => {
     const controller = new AbortController();
 
-    const fetchAllSales = async () => {
+    const allSales = async () => {
       try {
         const response = await axios.get(`${API_URL}/allsales`, {
           signal: controller.signal,
@@ -389,10 +389,11 @@ function Sales() {
       }
     };
 
-    fetchAllSales();
-
+    allSales();
+    const interval = setInterval(allSales, 1000);
     return () => {
       controller.abort();
+      clearInterval(interval);
     };
   }, [API_URL]);
 
