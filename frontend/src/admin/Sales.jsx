@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
 import "../App.css";
-import { Link, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 
 function Sales() {
@@ -34,10 +33,8 @@ function Sales() {
   const [sales, setSales] = useState(false);
   const popupRef = useRef(null);
   const buttonRef = useRef(null);
-  const navigate = useNavigate();
   const [showDate, setShowDate] = useState(false);
   const [showDate1, setShowDate1] = useState(false);
-  const [showDate2, setShowDate2] = useState(false);
   const portalRef = useRef(null);
   const portalRef1 = useRef(null);
   const [sectorCoords, setSectorCoords] = useState(null);
@@ -52,11 +49,6 @@ function Sales() {
 
   const getPageForGroup = (key) => {
     return groupPages[key] || 1;
-  };
-
-  let newStockAdd = (e) => {
-    e.stopPropagation();
-    setSales((prev) => !prev);
   };
 
   const updateSectorCoords = () => {
@@ -103,50 +95,6 @@ function Sales() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [sales]);
-
-  const [stocks, setStocks] = useState({
-    sector: "",
-    pax: "",
-    dot: "",
-    fare: "",
-    airline: "",
-    pnr: "",
-  });
-
-  const handleChanges = (e) => {
-    const { name, value } = e.target;
-    setStocks((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmited = async (e) => {
-    e.preventDefault();
-
-    try {
-      const response = await axios.post(`${API_URL}/stockpost`, stocks, {
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (response.data.success) {
-        toast.success(response.data.message || "Stock added successfully!");
-        setStocks({
-          sector: "",
-          pax: "",
-          dot: "",
-          fare: "",
-          airline: "",
-          pnr: "",
-        });
-
-        setTimeout(() => {
-          navigate("/admin/stockmanagement");
-        }, 300);
-      } else {
-        toast.error(response.data.message || "Something went wrong");
-      }
-    } catch (err) {
-      console.error("Error:", err);
-    }
-  };
 
   const fetchStocks = async () => {
     try {
@@ -840,125 +788,6 @@ function Sales() {
           <button className="btn btn-light sector-link" type="submit">
             Submit
           </button>
-
-          <Link
-            className="btn btn-light sector-link sales-btn"
-            onClick={newStockAdd}
-            ref={buttonRef}
-          >
-            Add Stock
-          </Link>
-
-          {sales && (
-            <div
-              className="new-stock-add"
-              onClick={(e) => e.stopPropagation()}
-              ref={popupRef}
-              role="dialog"
-              aria-modal="true"
-            >
-              <h5 className="text-light mb-3 mt-0">Add New Stock</h5>
-              <div className="d-flex flex-column gap-2">
-                <div className="col-12">
-                  <input
-                    type="text"
-                    placeholder="Add sector"
-                    className="form-control"
-                    name="sector"
-                    value={stocks.sector}
-                    onChange={handleChanges}
-                    required
-                  />
-                </div>
-
-                <div className="col-12">
-                  <input
-                    type="number"
-                    placeholder="Add PAXQ"
-                    className="form-control"
-                    name="pax"
-                    value={stocks.pax}
-                    onChange={handleChanges}
-                    required
-                  />
-                </div>
-
-                <div className="col-12">
-                  <input
-                    type={showDate2 ? "date" : "text"}
-                    className="form-control"
-                    placeholder="Add DOT"
-                    name="dot"
-                    value={stocks.dot}
-                    onFocus={() => setShowDate2(true)}
-                    onBlur={(e) => {
-                      if (!e.target.value) setShowDate2(false);
-                    }}
-                    onChange={handleChanges}
-                    required
-                  />
-                </div>
-
-                <div className="col-12">
-                  <input
-                    type="text"
-                    placeholder="Add Fare"
-                    className="form-control"
-                    name="fare"
-                    value={stocks.fare}
-                    onChange={handleChanges}
-                    required
-                  />
-                </div>
-
-                <div className="col-12">
-                  <input
-                    type="text"
-                    placeholder="Add Airline"
-                    className="form-control"
-                    name="airline"
-                    value={stocks.airline}
-                    onChange={handleChanges}
-                    required
-                  />
-                </div>
-
-                <div className="col-12">
-                  <input
-                    type="text"
-                    placeholder="Add PNR"
-                    className="form-control"
-                    name="pnr"
-                    value={stocks.pnr}
-                    onChange={handleChanges}
-                    required
-                  />
-                </div>
-
-                <div className="d-flex flex-row justify-content-center gap-2">
-                  <div>
-                    <button
-                      className="btn btn-success"
-                      type="button"
-                      onClick={handleSubmited}
-                    >
-                      Submit
-                    </button>
-                  </div>
-
-                  <div>
-                    <button
-                      className="btn btn-danger"
-                      type="button"
-                      onClick={() => setSales((prev) => !prev)}
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </form>
       </div>
 
