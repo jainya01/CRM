@@ -289,7 +289,7 @@ function Otb() {
     }
   };
 
-  const itemsPerPage = 36;
+  const itemsPerPage = 42;
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = useMemo(() => {

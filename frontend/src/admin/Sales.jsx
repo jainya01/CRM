@@ -40,7 +40,7 @@ function Sales() {
   const [sectorCoords, setSectorCoords] = useState(null);
   const [agentCoords, setAgentCoords] = useState(null);
   const [groupPages, setGroupPages] = useState({});
-  const itemsPerPage = 30;
+  const itemsPerPage = 42;
   const [currentPage, setCurrentPage] = useState(1);
 
   const setPageForGroup = (key, page) => {
@@ -183,26 +183,21 @@ function Sales() {
     };
   }, [showSectorSuggestions, showAgentSuggestions, stock.sector, stock.agent]);
 
-  const uniqueSectors = Array.from(
-    new Set(
-      [
-        ...agents.map((a) => a.sector || ""),
-        ...stockList.map((s) => s.sector || ""),
-      ]
-        .map((s) => (s || "").toString().trim())
-        .filter(Boolean)
-    )
-  ).filter((sector) => {
-    const stocksForSector = stockList.filter(
-      (s) =>
-        (s.sector || "").toString().trim().toLowerCase() ===
-        sector.toString().trim().toLowerCase()
-    );
-
-    if (stocksForSector.length === 0) return true;
-
-    return stocksForSector.some((s) => !isDotExpired(s.dot));
-  });
+  const sectorOptions = useMemo(() => {
+    return stockList
+      .filter(
+        (s) =>
+          s.sector &&
+          !isDotExpired(s.dot) &&
+          parseInt(s.pax, 10) !== parseInt(s.sold, 10)
+      )
+      .map((s) => ({
+        id: s.id,
+        sector: s.sector.toString().trim(),
+        dot: s.dot,
+        airline: s.airline,
+      }));
+  }, [stockList]);
 
   function validatePaxValue(paxValue, currentStock) {
     const paxNum = parseInt(paxValue, 10);
@@ -273,43 +268,16 @@ function Sales() {
     };
   }, []);
 
-  const handleSelectSector = (sector) => {
-    const chosenStock = stockList.find(
-      (s) =>
-        (s.sector || "").toString().trim().toLowerCase() ===
-        sector.toString().trim().toLowerCase()
-    );
+  const handleSelectSector = (stockItem) => {
+    setStock((prev) => ({
+      ...prev,
+      sector: stockItem.sector,
+      dot: stockItem.dot ?? "",
+      airline: stockItem.airline ?? "",
+      stock_id: stockItem.id,
+    }));
 
-    if (chosenStock) {
-      setStock((prev) => ({
-        ...prev,
-        sector,
-        dot: chosenStock.dot ?? "",
-        airline: chosenStock.airline ?? "",
-        stock_id: chosenStock.id ?? "",
-      }));
-      setSelectedStockId(String(chosenStock.id ?? ""));
-      setShowSectorSuggestions(false);
-      return;
-    }
-
-    const agentMatch = agents.find(
-      (a) =>
-        (a.sector || "").toString().trim().toLowerCase() ===
-        sector.toString().trim().toLowerCase()
-    );
-    if (agentMatch) {
-      setStock((prev) => ({
-        ...prev,
-        sector,
-        dot: agentMatch.dot ?? prev.dot ?? "",
-        airline: agentMatch.airline ?? prev.airline ?? "",
-      }));
-      setShowSectorSuggestions(false);
-      return;
-    }
-
-    setStock((prev) => ({ ...prev, sector }));
+    setSelectedStockId(String(stockItem.id));
     setShowSectorSuggestions(false);
   };
 
@@ -411,10 +379,13 @@ function Sales() {
           setFilteredSectors([]);
           setShowSectorSuggestions(false);
         } else {
-          const matches = uniqueSectors.filter((s) =>
-            s.toLowerCase().includes(q.toLowerCase())
+          const matches = sectorOptions.filter((s) =>
+            s.sector.toLowerCase().includes(q.toLowerCase())
           );
+
           setFilteredSectors(matches.slice(0, 10));
+          setShowSectorSuggestions(matches.length > 0);
+
           setShowSectorSuggestions(true);
         }
 
@@ -635,18 +606,18 @@ function Sales() {
                 }}
               >
                 {filteredSectors.length > 0 ? (
-                  filteredSectors.map((s, i) => (
+                  filteredSectors.map((item) => (
                     <li
-                      key={`${s}-${i}`}
+                      key={item.id}
                       role="option"
                       tabIndex={0}
                       onClick={() => {
-                        handleSelectSector(s);
+                        handleSelectSector(item);
                         setShowSectorSuggestions(false);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
-                          handleSelectSector(s);
+                          handleSelectSector(item);
                           setShowSectorSuggestions(false);
                         }
                       }}
@@ -655,13 +626,9 @@ function Sales() {
                         padding: "10px 12px",
                         lineHeight: 1.3,
                         wordBreak: "break-word",
-                        boxSizing: "border-box",
-                        whiteSpace: "normal",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
                       }}
                     >
-                      {s}
+                      <div>{item.sector}</div>
                     </li>
                   ))
                 ) : (
@@ -762,9 +729,9 @@ function Sales() {
                     }}
                   >
                     {stock.agent && filteredAgents.length > 0 ? (
-                      filteredAgents.map((a) => (
+                      filteredAgents.map((a, idx) => (
                         <li
-                          key={a._id}
+                          key={(a._id, idx)}
                           style={{ cursor: "pointer", padding: "10px 12px" }}
                           onClick={() => {
                             handleSelectAgent(a.agent_name);
@@ -798,32 +765,33 @@ function Sales() {
           const fare = first.fare ?? "-";
           const cardKey = group.key;
           const formattedDot = formatDot(group.dot);
-          const headerText = `${group.sector} ${formattedDot} ${group.airline}`;
+          const headerText = `${group.sector}`;
+          const headerText1 = `${formattedDot}`;
+          const headerText2 = `${group.airline}`;
 
           return (
             <div key={cardKey} className="card-wrapper">
               <div className="card border-0 shadow-sm">
-                <div className="card-header size-text text-dark rounded-0 d-flex justify-content-between align-items-center turq-box">
+                <div
+                  className="card-header size-text text-dark rounded-0 d-flex justify-content-between align-items-center turq-box"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => toggleDropdown(cardKey)}
+                >
                   <div
                     className="item-color1"
                     style={{ wordBreak: "break-word", cursor: "pointer" }}
-                    onClick={() => toggleDropdown(cardKey)}
                   >
                     {headerText}
                   </div>
 
-                  <div
-                    className="turq-caret"
-                    role="button"
-                    onClick={() => toggleDropdown(cardKey)}
-                  >
+                  <div className="turq-caret" role="button">
                     {openIndex === cardKey ? "▴" : "▾"}
                   </div>
                 </div>
 
                 {openIndex === cardKey && (
                   <div className="card-body p-0">
-                    <div className="d-flex justify-content-between align-items-center mb-2 px-2 py-2 flex-wrap">
+                    <div className="d-flex justify-content-between align-items-center mb-0 px-2 py-2 flex-wrap">
                       <span className="text-danger me-2">
                         <strong>PNR:</strong> {pnr}
                       </span>
@@ -831,6 +799,16 @@ function Sales() {
                       <span className="text-danger">
                         <strong>COST:</strong> {fare}/-
                       </span>
+                    </div>
+
+                    <div className="d-flex justify-content-between gap-1 mt-0 mb-2 ms-2 me-3">
+                      <div>
+                        {" "}
+                        <span className="fw-bold">Date:</span> {headerText1}
+                      </div>
+                      <div>
+                        <span className="fw-bold">Airline:</span> {headerText2}
+                      </div>
                     </div>
 
                     <div className="table-responsive">
@@ -847,7 +825,7 @@ function Sales() {
                         <tbody>
                           {(() => {
                             const items = group.items ?? [];
-                            const itemsPerPage = 7;
+                            const itemsPerPage = 5;
                             const currentPage = getPageForGroup(group.key);
                             const startIdx = (currentPage - 1) * itemsPerPage;
                             const paginatedItems = items.slice(

@@ -98,7 +98,6 @@ function Urase() {
       localStorage.setItem("lastReadURASECreatedAt", msgTime);
     }
 
-    // remove from active list
     const activeIds = (localStorage.getItem("uraseIds") || "")
       .split(",")
       .filter(Boolean)
@@ -142,7 +141,6 @@ function Urase() {
             .map(Number)
         );
 
-        // ❗ blocked IDs will NEVER be re-added
         const newIds = data
           .map((item) => item.id)
           .filter((id) => !existingIds.includes(id) && !blockedIds.has(id));
@@ -154,7 +152,7 @@ function Urase() {
           );
         }
 
-        setStaffList(data); // UI untouched
+        setStaffList(data);
       } catch (error) {
         if (axios.isCancel?.(error)) {
           console.log("FetchAllOtbs cancelled");
@@ -336,7 +334,7 @@ function Urase() {
     }
   };
 
-  const itemsPerPage = 36;
+  const itemsPerPage = 42;
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = useMemo(() => {

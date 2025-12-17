@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
   LineChart,
@@ -18,14 +18,10 @@ function Dashboard() {
   const [filteredStockList, setFilteredStockList] = useState([]);
   const [sales, setSales] = useState([]);
   const [openIndex, setOpenIndex] = useState(null);
-  const sectorRef = useRef(null);
-  const [showSectorSuggestions, setShowSectorSuggestions] = useState(false);
-  const [filteredSectors, setFilteredSectors] = useState([]);
   const [chartData, setChartData] = useState([]);
-  const [showDate, setShowDate] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9;
-  const [salesPageState, setSalesPageState] = useState({});
+  const [paxQuery, setPaxQuery] = useState("");
+  const itemsPerPage = 13;
 
   function isDotExpired(dateString) {
     if (!dateString) return false;
@@ -176,23 +172,9 @@ function Dashboard() {
     };
   }, [API_URL]);
 
-  const uniqueSectors = useMemo(() => {
-    const sectors = (Array.isArray(stockList) ? stockList : [])
-      .map((s) => (s.sector || "").toString().trim())
-      .filter(Boolean);
-
-    const unique = Array.from(new Set(sectors));
-
-    return unique.filter((sector) => {
-      const stocksForSector = stockList.filter(
-        (s) =>
-          (s.sector || "").toString().trim().toLowerCase() ===
-          sector.toString().trim().toLowerCase()
-      );
-      if (stocksForSector.length === 0) return true;
-      return stocksForSector.some((s) => !isDotExpired(s.dot));
-    });
-  }, [stockList]);
+  const [salesPageState, setSalesPageState] = useState({});
+  const [searchType, setSearchType] = useState("");
+  const [pnrQuery, setPnrQuery] = useState("");
 
   useEffect(() => {
     const totalPassenger = Array.isArray(sales) ? sales.length : 0;
@@ -261,142 +243,112 @@ function Dashboard() {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  function validatePaxValue(paxValue, currentStock) {
-    if (paxValue === "" || paxValue === null || paxValue === undefined) return;
-    const paxNum = parseInt(paxValue, 10);
-    if (isNaN(paxNum) || paxNum < 0) return;
-
-    let stockToCheck = null;
-    if (currentStock.stock_id) {
-      stockToCheck = stockList.find(
-        (s) => String(s.id) === String(currentStock.stock_id)
-      );
-    } else if (
-      currentStock.sector &&
-      currentStock.sector.toString().trim() !== ""
-    ) {
-      stockToCheck = stockList.find(
-        (s) =>
-          (s.sector || "").toString().trim().toLowerCase() ===
-          currentStock.sector.toString().trim().toLowerCase()
-      );
-    }
-    if (!stockToCheck) return;
-    const available = Number(stockToCheck.pax);
-    if (isNaN(available)) return;
-  }
-
-  const handleChange = (e) => {
-    const { name } = e.target;
-    let { value } = e.target;
-
-    if (name === "pax") value = value === "" ? "" : value.replace(/[^\d]/g, "");
-
-    setStock((prev) => {
-      const newStock = { ...prev, [name]: value };
-
-      if (name === "sector") {
-        const q = (value || "").toString().trim();
-
-        if (!q) {
-          setFilteredSectors([]);
-          setShowSectorSuggestions(false);
-        } else {
-          const matches = uniqueSectors.filter((s) =>
-            s.toLowerCase().includes(q.toLowerCase())
-          );
-          setFilteredSectors(matches.slice(0, 10));
-          setShowSectorSuggestions(true);
-        }
-      }
-
-      if (name === "pax") {
-        validatePaxValue(value, newStock);
-      }
-
-      if (name === "dot") {
-        const selected = new Date(value);
-        if (!isNaN(selected)) {
-          const day = selected.getDate().toString().padStart(2, "0");
-          const month = selected
-            .toLocaleString("en-US", { month: "short" })
-            .toUpperCase();
-          const year = selected.getFullYear();
-          value = `${day} ${month} ${year}`;
-        }
-      }
-
-      return newStock;
-    });
-  };
-
-  const handleSelectSector = (sector) => {
-    setStock((prev) => {
-      const found = stockList.find(
-        (s) =>
-          (s.sector || "").toString().trim().toLowerCase() ===
-          sector.toString().trim().toLowerCase()
-      );
-
-      const newStock = {
-        ...prev,
-        sector,
-        stock_id: found ? found.id : prev.stock_id,
-        airline: found?.airline ?? prev.airline,
-      };
-
-      return newStock;
-    });
-
-    setShowSectorSuggestions(false);
-  };
-
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (sectorRef.current && !sectorRef.current.contains(e.target)) {
-        setShowSectorSuggestions(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const handleSearch = (e) => {
     e.preventDefault();
 
-    const sectorQuery = (stock.sector || "").trim().toLowerCase();
-    const dotQueryRaw = (stock.dot || "").trim();
+    if (searchType === "pnr") {
+      const q = pnrQuery.trim().toLowerCase();
 
-    let dotQueryFormatted = "";
-    if (dotQueryRaw) {
-      const parsedQ = parseToDateObj(dotQueryRaw);
-      if (parsedQ) {
-        dotQueryFormatted = formatDateDisplay(parsedQ).toLowerCase();
-      } else {
-        dotQueryFormatted = dotQueryRaw.toLowerCase();
-      }
+      const filtered = stockList.filter(
+        (s) => !isDotExpired(s.dot) && (s.pnr || "").toLowerCase().includes(q)
+      );
+
+      setFilteredStockList(filtered);
+      setCurrentPage(1);
+      return;
     }
 
-    const filtered = (Array.isArray(stockList) ? stockList : []).filter((s) => {
-      if (isDotExpired(s.dot)) return false;
+    if (searchType === "dot") {
+      if (!stock.dot) return;
 
-      const sSector = (s.sector || "").toLowerCase();
-      const sDotDisplay = (
-        formatDateDisplay(parseToDateObj(s.dot)) || ""
-      ).toLowerCase();
+      const qDate = parseToDateObj(stock.dot);
 
-      const matchesSector = sectorQuery ? sSector.includes(sectorQuery) : true;
+      const filtered = stockList.filter((s) => {
+        if (isDotExpired(s.dot)) return false;
 
-      const matchesDot = dotQueryFormatted
-        ? sDotDisplay.includes(dotQueryFormatted)
-        : true;
+        const sDate = parseToDateObj(s.dot);
+        if (!qDate || !sDate) return false;
 
-      return matchesSector && matchesDot;
-    });
+        return (
+          sDate.getFullYear() === qDate.getFullYear() &&
+          sDate.getMonth() === qDate.getMonth() &&
+          sDate.getDate() === qDate.getDate()
+        );
+      });
 
-    setFilteredStockList(filtered);
-    setShowSectorSuggestions(false);
-    setCurrentPage(1);
+      setFilteredStockList(filtered);
+      setCurrentPage(1);
+      return;
+    }
+
+    if (searchType === "pax") {
+      const q = paxQuery.trim().toLowerCase();
+
+      const matchedSales = sales.filter((s) =>
+        (s.pax || s.name || "").toLowerCase().includes(q)
+      );
+
+      const stockIdSet = new Set(matchedSales.map((s) => String(s.stock_id)));
+
+      const filtered = stockList.filter(
+        (st) => !isDotExpired(st.dot) && stockIdSet.has(String(st.id))
+      );
+
+      setFilteredStockList(filtered);
+      setCurrentPage(1);
+      return;
+    }
+
+    if (searchType === "sector") {
+      const originQ = origin.trim().toLowerCase();
+      const destinationQ = destination.trim().toLowerCase();
+      const dateQ = stock.dot ? parseToDateObj(stock.dot) : null;
+
+      const filtered = stockList.filter((s) => {
+        if (isDotExpired(s.dot)) return false;
+
+        let sectorRaw = (s.sector || "").toLowerCase();
+
+        sectorRaw = sectorRaw
+          .replace(/\s+to\s+/g, "-")
+          .replace(/\s*→\s*/g, "-")
+          .replace(/\s*\/\s*/g, "-")
+          .replace(/\s*-\s*/g, "-")
+          .trim();
+
+        const [sectorOrigin = "", sectorDestination = ""] = sectorRaw
+          .split("-")
+          .map((p) => p.trim());
+
+        let matchesSector = true;
+
+        if (originQ && destinationQ) {
+          matchesSector =
+            sectorOrigin === originQ && sectorDestination === destinationQ;
+        } else if (originQ) {
+          matchesSector = sectorOrigin.startsWith(originQ);
+        } else if (destinationQ) {
+          matchesSector = sectorDestination.endsWith(destinationQ);
+        }
+
+        let matchesDate = true;
+        if (dateQ) {
+          const sDate = parseToDateObj(s.dot);
+          if (!sDate) return false;
+
+          matchesDate =
+            sDate.getFullYear() === dateQ.getFullYear() &&
+            sDate.getMonth() === dateQ.getMonth() &&
+            sDate.getDate() === dateQ.getDate();
+        }
+
+        return matchesSector && matchesDate;
+      });
+
+      setFilteredStockList(filtered);
+      setCurrentPage(1);
+      return;
+    }
   };
 
   const totalPages = useMemo(() => {
@@ -426,17 +378,48 @@ function Dashboard() {
     if (typeof value === "string") {
       const s = value.trim();
 
-      const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-      if (isoMatch) {
-        const [, y, m, d] = isoMatch.map(Number);
-        return new Date(y, m - 1, d);
+      const yxx = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+      if (yxx) {
+        const [, y, a, b] = yxx.map(Number);
+
+        let day, month;
+
+        if (a > 12) {
+          day = a;
+          month = b;
+        } else if (b > 12) {
+          month = a;
+          day = b;
+        } else {
+          month = a;
+          day = b;
+        }
+
+        return new Date(y, month - 1, day);
       }
 
-      const dmY = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
-      if (dmY) {
-        let [, d, m, y] = dmY;
+      const xxxy = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+      if (xxxy) {
+        let [, a, b, y] = xxxy;
         y = y.length === 2 ? (Number(y) < 70 ? "20" + y : "19" + y) : y;
-        return new Date(Number(y), Number(m) - 1, Number(d));
+
+        a = Number(a);
+        b = Number(b);
+
+        let day, month;
+
+        if (a > 12) {
+          day = a;
+          month = b;
+        } else if (b > 12) {
+          month = a;
+          day = b;
+        } else {
+          day = a;
+          month = b;
+        }
+
+        return new Date(Number(y), month - 1, day);
       }
 
       const fallback = new Date(s);
@@ -448,6 +431,7 @@ function Dashboard() {
 
   function formatDateDisplay(d) {
     if (!d || !(d instanceof Date) || isNaN(d.getTime())) return "-";
+
     const day = String(d.getDate()).padStart(2, "0");
     const monthNames = [
       "JAN",
@@ -465,6 +449,7 @@ function Dashboard() {
     ];
     const month = monthNames[d.getMonth()];
     const year = d.getFullYear();
+
     return `${day} ${month} ${year}`;
   }
 
@@ -473,6 +458,7 @@ function Dashboard() {
     return formatDateDisplay(d);
   }
 
+  const [open, setOpen] = useState(false);
   const [role, setRole] = useState("");
   const [staff, setStaff] = useState([]);
 
@@ -555,96 +541,148 @@ function Dashboard() {
     };
   }, [API_URL]);
 
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+
+  const swapValues = () => {
+    setOrigin(destination);
+    setDestination(origin);
+  };
+
   return (
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-start mb-0 text-center header-color gap-5 px-1 m-0 py-3 mt-0">
         <form onSubmit={handleSearch}>
-          <div className="row g-2 ms-lg-3 ms-0 align-items-start">
-            <div
-              className="col-6 col-md-6 col-lg-2 position-relative"
-              ref={sectorRef}
-            >
+          <div className="d-flex align-items-center flex-wrap gap-2 ms-lg-2 ms-1 w-100">
+            <div style={{ minWidth: "200px" }}>
+              <div
+                className={`dropdown-wrapper origin-reolve text-start ${
+                  open ? "open" : ""
+                }`}
+              >
+                <select
+                  className="custom-select text-dark"
+                  value={searchType}
+                  onFocus={() => setOpen(true)}
+                  onBlur={() => setOpen(false)}
+                  onChange={(e) => {
+                    setSearchType(e.target.value);
+                    setOpen(false);
+                  }}
+                >
+                  <option value="">Select & Option</option>
+                  <option value="sector">Search Sector</option>
+                  <option value="pnr">PNR</option>
+                  <option value="dot">DOT</option>
+                  <option value="pax">PAX Name</option>
+                </select>
+              </div>
+            </div>
+
+            {searchType === "sector" && (
+              <>
+                <div style={{ width: "360px" }} className="origin-desti me-1">
+                  <div className="route-input-wrapper">
+                    <input
+                      type="text"
+                      className="route-input left"
+                      placeholder="Enter Origin"
+                      value={origin}
+                      onChange={(e) => setOrigin(e.target.value)}
+                    />
+
+                    <button
+                      type="button"
+                      className="swap-btn fw-bold"
+                      onClick={swapValues}
+                    >
+                      ⇄
+                    </button>
+
+                    <input
+                      type="text"
+                      className="route-input right"
+                      placeholder="Enter Destination"
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={stock.dot}
+                    onChange={(e) =>
+                      setStock((prev) => ({ ...prev, dot: e.target.value }))
+                    }
+                  />
+                </div>
+              </>
+            )}
+
+            {searchType === "pnr" && (
               <input
                 type="search"
-                className="form-control custom-form"
-                placeholder="Search Sector"
-                name="sector"
-                value={stock.sector}
-                onChange={handleChange}
-                onFocus={() => {
-                  return;
-                }}
-                autoComplete="off"
+                className="form-control pnr-wise"
+                placeholder="Search by PNR Number"
+                // style={{ width: "220px" }}
+                value={pnrQuery}
+                onChange={(e) => setPnrQuery(e.target.value)}
                 required
               />
+            )}
 
-              {showSectorSuggestions && (
-                <ul
-                  className="list-group suggestion-box1 position-absolute w-100"
-                  style={{ zIndex: 9999 }}
-                >
-                  {filteredSectors.length > 0 ? (
-                    filteredSectors.map((s) => (
-                      <li
-                        key={s}
-                        className="list-group-item px-3 text-dark text-start list-group-item-action2"
-                        onClick={() => handleSelectSector(s)}
-                        style={{ cursor: "pointer" }}
-                      >
-                        {s}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="list-group-item text-danger">
-                      No sector found
-                    </li>
-                  )}
-                </ul>
-              )}
-            </div>
-
-            <div className="col-6 col-md-6 col-lg-2">
+            {searchType === "dot" && (
               <input
-                type={showDate ? "date" : "text"}
-                className="form-control custom-form"
-                placeholder="Date of travel (DOT)"
-                name="dot"
+                type="date"
+                className="form-control pnr-wise"
+                style={{ width: "220px" }}
                 value={stock.dot}
-                onFocus={() => setShowDate(true)}
-                onBlur={(e) => {
-                  if (!e.target.value) setShowDate(false);
-                }}
-                onChange={handleChange}
+                onChange={(e) =>
+                  setStock((prev) => ({ ...prev, dot: e.target.value }))
+                }
                 required
               />
-            </div>
+            )}
 
-            <div className="col-3 col-md-2 col-sm-2 col-lg-1 d-flex justify-content-start">
-              <button className="btn btn-secondary px-1" type="submit">
+            {searchType === "pax" && (
+              <input
+                type="search"
+                className="form-control pnr-wise"
+                placeholder="Search by PAX Name"
+                style={{ width: "220px" }}
+                value={paxQuery}
+                onChange={(e) => setPaxQuery(e.target.value)}
+                required
+              />
+            )}
+
+            <div style={{ width: "90px" }} className="mt-0">
+              <button className="btn btn-secondary" type="submit">
                 Search
               </button>
             </div>
 
-            {filteredStockList.length > 0 ? (
-              <div className="col-9 col-md-10 col-sm-10 col-lg-7 mt-2 mt-md-2 ps-0">
-                <div className="p-0 border rounded px-2 ticket-result bg-white text-start">
-                  <span className="fw-bold text-success">Result: </span>
-                  <span className="seat-contact">
-                    Total {totalPax} Seats available. Contact travel agency to
-                    book.
-                  </span>
-                </div>
+            <div style={{ minWidth: "260px" }} className="box-end">
+              <div className="border rounded px-2 py-1 bg-white text-start">
+                <span
+                  className={`fw-bold ${
+                    totalPax > 0 ? "text-success" : "text-danger"
+                  }`}
+                >
+                  <span className="text-dark">Result:</span>
+                </span>{" "}
+                <span
+                  className={`fw-bold ${
+                    totalPax > 0 ? "text-success" : "text-danger"
+                  }`}
+                >
+                  Total {totalPax} Seats available.
+                </span>
               </div>
-            ) : (
-              <div className="col-9 col-md-10 col-sm-10 col-lg-7 mt-2 mt-md-2 ps-0">
-                <div className="p-0 border rounded px-2 ticket-result bg-white text-start">
-                  <span className="fw-bold text-danger">Result: </span>
-                  <span className="seat-contact text-danger">
-                    Total 0 Seats available. Contact travel agency to book.
-                  </span>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         </form>
       </div>
@@ -692,12 +730,12 @@ function Dashboard() {
                 </LineChart>
               </ResponsiveContainer>
 
-              <div className="text-center stats-labels mt-3">
+              <div className="text-center stats-labels d-flex flex-row flex-wrap mt-3">
                 {Array.isArray(chartStats) &&
                   chartStats.map((item, i) => (
-                    <div key={i} className="stat-item">
-                      <h5>{item.name}</h5>
-                      <p>{item.value}</p>
+                    <div key={i} className="stat-item mb-2">
+                      <h5 className="text-start fw-bold">{item.name}</h5>
+                      <p className="fw-bold">{item.value}</p>
                     </div>
                   ))}
               </div>
@@ -765,8 +803,8 @@ function Dashboard() {
                       style={{ cursor: "pointer" }}
                     >
                       <span>
-                        {item.sector} | {formatDot(item.dot)} | {item.airline} |{" "}
-                        <span className="text-success fw-bold">
+                        {item.sector} |
+                        <span className="text-success fw-bold ms-2">
                           <strong className="text-success">{seatsLeft}</strong>{" "}
                           Seats Left
                         </span>
@@ -779,10 +817,11 @@ function Dashboard() {
 
                     {openIndex === serial && (
                       <div className="flight-body border border-light">
-                        <div className="d-flex justify-content-between mb-2">
+                        <div className="d-flex justify-content-between mb-1">
                           <span className="text-danger">
                             <strong>PNR:</strong> {item.pnr}
                           </span>
+
                           <span className="text-danger text-end">
                             <strong>COST:</strong>{" "}
                             {role === "admin"
@@ -794,13 +833,27 @@ function Dashboard() {
                           </span>
                         </div>
 
-                        <div className="d-flex flex-row justify-content-center gap-3 align-items-center mt-0 mb-2">
-                          <span className="text-success1 fw-bold px-2">
+                        <div className="d-flex justify-content-between mb-2">
+                          <div>
+                            <span className="fw-bold">Date:</span>{" "}
+                            {formatDot(item.dot)}
+                          </div>
+
+                          <div>
+                            <span className="fw-bold">Airline:</span>{" "}
+                            {item.airline}
+                          </div>
+                        </div>
+
+                        <div className="d-flex flex-row justify-content-between gap-3 align-items-center mt-0 mb-2">
+                          <span className="text-success1 fw-bold">
                             Total Seats: <strong>{totalSeats}</strong>
                           </span>
+
                           <span className="text-success fw-bold">
                             Seats Sold: <strong>{seatsSold}</strong>
                           </span>
+
                           <span className="text-danger fw-bold pe-1">
                             Seats Left:{" "}
                             <strong className="text-danger">{seatsLeft}</strong>
@@ -834,7 +887,7 @@ function Dashboard() {
                                         colSpan="4"
                                         className="text-danger fw-bold"
                                       >
-                                        No sales available
+                                        No sales available.
                                       </td>
                                     </tr>
                                   );
@@ -930,7 +983,7 @@ function Dashboard() {
               <div className="size-text mb-3">
                 <div className="p-3 rounded bg-white text-center">
                   <p className="mb-0 fw-bold text-danger border rounded text-start px-3 py-2">
-                    No seats available for the selected date.
+                    No records found for the selected search criteria.
                   </p>
                 </div>
               </div>

@@ -1,8 +1,103 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
 import "../App.css";
+
+function startOfWeek(d) {
+  const x = new Date(d);
+  const day = x.getDay();
+  const diff = x.getDate() - day + (day === 0 ? -6 : 1);
+  x.setDate(diff);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfWeek(d) {
+  const x = startOfWeek(d);
+  x.setDate(x.getDate() + 6);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfDay(d) {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+
+function startOfMonth(d) {
+  const x = new Date(d);
+  x.setDate(1);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfMonth(d) {
+  const x = new Date(d);
+  x.setMonth(x.getMonth() + 1, 0);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+
+function startOfYear(d) {
+  const x = new Date(d);
+  x.setMonth(0, 0);
+  x.setDate(1);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfYear(d) {
+  const x = new Date(d);
+  x.setMonth(11, 31);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+
+function getRangeForFilter(filter, now = new Date(), customFrom, customTo) {
+  switch (filter) {
+    case "weekly":
+      return {
+        start: startOfWeek(now),
+        end: endOfWeek(now),
+      };
+
+    case "monthly":
+      return {
+        start: startOfMonth(now),
+        end: endOfMonth(now),
+      };
+
+    case "halfYearly":
+      return {
+        start: startOfMonth(new Date(now.getFullYear(), now.getMonth() - 5, 1)),
+        end: endOfMonth(now),
+      };
+
+    case "yearly":
+      return {
+        start: startOfYear(now),
+        end: endOfYear(now),
+      };
+
+    case "custom": {
+      if (!customFrom || !customTo) return null;
+      const s = startOfDay(new Date(customFrom));
+      const e = endOfDay(new Date(customTo));
+      if (isNaN(s) || isNaN(e) || s > e) return null;
+      return { start: s, end: e };
+    }
+
+    default:
+      return null;
+  }
+}
 
 function StockManagement() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -20,7 +115,7 @@ function StockManagement() {
   const [staff, setStaff] = useState([]);
   const [showDate, setShowDate] = useState(false);
   const [filterStatus, setFilterStatus] = useState("available");
-  const itemsPerPage = 27;
+  const itemsPerPage = 42;
   const [currentPage, setCurrentPage] = useState(1);
   const modalRef = useRef(null);
   const [showModal, setShowModal] = useState(false);
@@ -60,6 +155,154 @@ function StockManagement() {
     }
   };
 
+  const [months, setMonths] = useState("");
+  const monthPillRef = useRef(null);
+  const popoverRef = useRef(null);
+  const [month, setMonth] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState(null);
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState(null);
+  const [filteredStocks, setFilteredStocks] = useState([]);
+  const [filteredSales, setFilteredSales] = useState([]);
+  const stocksToUse = selectedFilter ? filteredStocks : staff;
+  const salesToUse = selectedFilter ? filteredSales : sales;
+
+  useEffect(() => {
+    const updateMonth = () => {
+      const now = new Date();
+      const monthNames = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      setMonths(monthNames[now.getMonth()]);
+    };
+
+    updateMonth();
+    const interval = setInterval(updateMonth, 24 * 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  function applyPresetFilter(filterName) {
+    setSelectedFilter(filterName);
+    setMonth(false);
+  }
+
+  useEffect(() => {
+    if (!selectedFilter) {
+      setFilteredStocks(staff);
+      setFilteredSales(sales);
+      return;
+    }
+
+    if (selectedFilter !== "custom") {
+      const range = getRangeForFilter(selectedFilter, new Date());
+      if (!range) return;
+
+      const { start, end } = range;
+
+      const filterStocksByDot = (list) =>
+        list.filter((item) => {
+          const d = parseToDateObj(item.dot);
+          return d && d >= start && d <= end;
+        });
+
+      const filterSalesByDate = (list) =>
+        list.filter((item) => {
+          const d = parseToDateObj(item.dotb || item.created_at);
+          return d && d >= start && d <= end;
+        });
+
+      setFilteredStocks(filterStocksByDot(staff));
+      setFilteredSales(filterSalesByDate(sales));
+    }
+  }, [selectedFilter, staff, sales]);
+
+  function toggleMonthPopover() {
+    if (month) {
+      setMonth(false);
+      return;
+    }
+
+    const pill = monthPillRef.current;
+    if (!pill) return;
+
+    const rect = pill.getBoundingClientRect();
+    const cardWidth = 220;
+    const gap = 8;
+    const margin = 8;
+
+    let top = rect.bottom + gap;
+    let left = rect.left + rect.width / 2 - cardWidth / 2;
+
+    if (left < margin) left = margin;
+    if (left + cardWidth > window.innerWidth - margin) {
+      left = window.innerWidth - cardWidth - margin;
+    }
+
+    setPopoverStyle({
+      top: `${top}px`,
+      left: `${left}px`,
+    });
+
+    setMonth(true);
+  }
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedFilter]);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (monthPillRef.current?.contains(e.target)) return;
+      if (popoverRef.current?.contains(e.target)) return;
+      setMonth(false);
+    }
+
+    if (month) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [month]);
+
+  function applyCustomRange() {
+    if (!customFrom || !customTo) {
+      alert("Please pick both dates");
+      return;
+    }
+
+    const range = getRangeForFilter("custom", new Date(), customFrom, customTo);
+    if (!range) return;
+
+    const { start, end } = range;
+
+    const filterStocksByDot = (list) =>
+      list.filter((item) => {
+        const d = parseToDateObj(item.dot);
+        return d && d >= start && d <= end;
+      });
+
+    const filterSalesByDate = (list) =>
+      list.filter((item) => {
+        const d = parseToDateObj(item.dotb || item.created_at);
+        return d && d >= start && d <= end;
+      });
+
+    setFilteredStocks(filterStocksByDot(staff));
+    setFilteredSales(filterSalesByDate(sales));
+
+    setSelectedFilter("custom");
+    setMonth(false);
+  }
+
   const toggleDropdown = (index) => {
     setOpenIndex(openIndex === index ? null : index);
   };
@@ -74,16 +317,10 @@ function StockManagement() {
           axios.get(`${API_URL}/allsales`, { signal: controller.signal }),
         ]);
 
-        const stocksPayload = stocksResponse.data?.data ?? stocksResponse.data;
-        setStaff(Array.isArray(stocksPayload) ? stocksPayload : []);
-
-        const salesPayload = salesResponse.data?.data ?? salesResponse.data;
-        setSales(Array.isArray(salesPayload) ? salesPayload : []);
-      } catch (error) {
-        if (axios.isCancel(error)) {
-          console.log("Fetch request cancelled");
-        } else {
-          console.error("Error fetching data:", error);
+        setStaff(stocksResponse.data?.data || []);
+        setSales(salesResponse.data?.data || []);
+      } catch (e) {
+        if (!axios.isCancel(e)) {
           setStaff([]);
           setSales([]);
         }
@@ -91,13 +328,7 @@ function StockManagement() {
     };
 
     fetchData();
-
-    const interval = setInterval(fetchData, 1000);
-
-    return () => {
-      controller.abort();
-      clearInterval(interval);
-    };
+    return () => controller.abort();
   }, [API_URL]);
 
   function parseToDateObj(value) {
@@ -118,28 +349,43 @@ function StockManagement() {
       const s = value.trim();
 
       if (/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}:\d{2})?$/.test(s)) {
-        const iso = s.replace(" ", "T");
-        const d = new Date(iso);
-        if (!isNaN(d.getTime())) return d;
+        const [y, m, d] = s.split(/[-T ]/).map(Number);
+        if (m > 12) return new Date(y, d - 1, m);
+        return new Date(y, m - 1, d);
       }
 
       const sepMatch = s.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})$/);
       if (sepMatch) {
-        let [, p1, p2, p3] = sepMatch;
-        if (p1.length === 4) {
-          const y = parseInt(p1, 10),
-            m = parseInt(p2, 10),
-            d = parseInt(p3, 10);
-          const dateObj = new Date(y, m - 1, d);
-          if (!isNaN(dateObj.getTime())) return dateObj;
+        let [, p1, p2, p3] = sepMatch.map(Number);
+
+        let day, month, year;
+
+        if (p1 > 31) {
+          year = p1;
+          if (p2 > 12) {
+            day = p2;
+            month = p3;
+          } else {
+            month = p2;
+            day = p3;
+          }
+        } else if (p3 > 31) {
+          year = p3 < 100 ? (p3 < 70 ? 2000 + p3 : 1900 + p3) : p3;
+          if (p1 > 12) {
+            day = p1;
+            month = p2;
+          } else {
+            day = p2;
+            month = p1;
+          }
         } else {
-          let day = parseInt(p1, 10),
-            month = parseInt(p2, 10),
-            year = parseInt(p3, 10);
-          if (year < 100) year = year < 70 ? 2000 + year : 1900 + year;
-          const dateObj = new Date(year, month - 1, day);
-          if (!isNaN(dateObj.getTime())) return dateObj;
+          day = p1;
+          month = p2;
+          year = p3 < 100 ? (p3 < 70 ? 2000 + p3 : 1900 + p3) : p3;
         }
+
+        const dateObj = new Date(year, month - 1, day);
+        if (!isNaN(dateObj.getTime())) return dateObj;
       }
 
       const d2 = new Date(s);
@@ -190,11 +436,12 @@ function StockManagement() {
 
   const groupedByHeader = useMemo(() => {
     const map = new Map();
-    (Array.isArray(staff) ? staff : []).forEach((item) => {
-      const sector = (item.sector ?? "").toString().trim();
-      const dot = (item.dot ?? "").toString().trim();
-      const airline = (item.airline ?? "").toString().trim();
-      const agent = (item.agent ?? "-").toString().trim() || "-";
+
+    (Array.isArray(stocksToUse) ? stocksToUse : []).forEach((item) => {
+      const sector = (item.sector ?? "").trim();
+      const dot = (item.dot ?? "").trim();
+      const airline = (item.airline ?? "").trim();
+      const agent = (item.agent ?? "-").trim() || "-";
 
       const key = `${sector}||${dot}||${airline}||${agent}`;
 
@@ -204,16 +451,9 @@ function StockManagement() {
 
     return Array.from(map.entries()).map(([key, items]) => {
       const [sector, dot, airline, agent] = key.split("||");
-      return {
-        key,
-        sector,
-        dot,
-        airline,
-        agent,
-        items,
-      };
+      return { key, sector, dot, airline, agent, items };
     });
-  }, [staff]);
+  }, [stocksToUse]);
 
   const filteredGroups = useMemo(() => {
     if (!Array.isArray(groupedByHeader)) return [];
@@ -260,7 +500,7 @@ function StockManagement() {
 
       return timeB - timeA;
     });
-  }, [filteredGroups, sales]);
+  }, [filteredGroups, filteredSales]);
 
   const paginatedGroups = useMemo(() => {
     if (!Array.isArray(sortedGroups)) return [];
@@ -312,17 +552,19 @@ function StockManagement() {
     }
   };
 
+  const addBulkBtnRef = useRef(null);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        setShowModal(false);
-      }
+      if (addBulkBtnRef.current?.contains(event.target)) return;
+
+      if (modalRef.current?.contains(event.target)) return;
+
+      setShowModal(false);
     };
 
     if (showModal) {
       document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
@@ -409,12 +651,14 @@ function StockManagement() {
           </button>
 
           <div style={{ position: "relative" }}>
-            <Link
+            <button
+              ref={addBulkBtnRef}
+              type="button"
               className="btn btn-light sector-link sales-btn"
-              onClick={() => setShowModal(!showModal)}
+              onClick={() => setShowModal((prev) => !prev)}
             >
               Add Bulk
-            </Link>
+            </button>
 
             {showModal && (
               <div className="bulk-upload-box" ref={modalRef}>
@@ -457,6 +701,170 @@ function StockManagement() {
               <option value="expired">Expired</option>
             </select>
           </div>
+
+          <div className="text-dark">
+            <div className="month-pill-wrapper">
+              <div
+                ref={monthPillRef}
+                className="month-pill"
+                onClick={toggleMonthPopover}
+              >
+                {months}
+              </div>
+
+              {month && (
+                <div
+                  ref={popoverRef}
+                  className="spending-card mt-2 me-2 text-start"
+                  aria-modal="true"
+                  role="dialog"
+                >
+                  <h5 className="title fw-bold text-dark text-start">
+                    Show Date
+                  </h5>
+
+                  <div
+                    className="spending-form"
+                    onSubmit={(e) => e.preventDefault()}
+                  >
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="performance"
+                        id="monthly"
+                        value="monthly"
+                        checked={selectedFilter === "monthly"}
+                        onChange={() => applyPresetFilter("monthly")}
+                      />
+                      <label className="form-check-label" htmlFor="monthly">
+                        Monthly
+                      </label>
+                    </div>
+
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="performance"
+                        id="halfYearly"
+                        value="halfYearly"
+                        checked={selectedFilter === "halfYearly"}
+                        onChange={() => applyPresetFilter("halfYearly")}
+                      />
+                      <label className="form-check-label" htmlFor="halfYearly">
+                        Half-yearly
+                      </label>
+                    </div>
+
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="performance"
+                        id="yearly"
+                        value="yearly"
+                        checked={selectedFilter === "yearly"}
+                        onChange={() => applyPresetFilter("yearly")}
+                      />
+                      <label className="form-check-label" htmlFor="yearly">
+                        Yearly
+                      </label>
+                    </div>
+
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="performance"
+                        id="custom"
+                        value="custom"
+                        checked={selectedFilter === "custom"}
+                        onChange={() => {
+                          setSelectedFilter("custom");
+                        }}
+                      />
+                      <label className="form-check-label" htmlFor="custom">
+                        Custom range
+                      </label>
+                    </div>
+
+                    {selectedFilter === "custom" && (
+                      <div
+                        className="custom-range-row"
+                        style={{ marginTop: 8 }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                            alignItems: "start",
+                          }}
+                        >
+                          <label className="text-dark">From</label>
+                          <input
+                            type="date"
+                            value={customFrom}
+                            onChange={(e) => setCustomFrom(e.target.value)}
+                            className="form-control"
+                            aria-label="From date"
+                          />
+                          <label className="text-dark">To</label>
+                          <input
+                            type="date"
+                            value={customTo}
+                            onChange={(e) => setCustomTo(e.target.value)}
+                            className="form-control"
+                            aria-label="To date"
+                          />
+                        </div>
+
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            className="btn btn-primary apply-btn"
+                            onClick={applyCustomRange}
+                          >
+                            Apply
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn btn-secondary mt-0 ms-2"
+                            onClick={() => {
+                              setMonth(false);
+                              setPopoverStyle(null);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedFilter !== "custom" && (
+                      <div
+                        className="d-flex justify-content-end"
+                        style={{ marginTop: 12 }}
+                      >
+                        <button
+                          type="button"
+                          className="cancel-btn ms-2"
+                          onClick={() => {
+                            setMonth(false);
+                            setPopoverStyle(null);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </form>
       </div>
 
@@ -475,14 +883,17 @@ function StockManagement() {
               className="col-12 col-sm-6 col-md-6 col-lg-4 mb-3"
             >
               <div className="card border-0 shadow-sm">
-                <div className="card-header size-text text-dark rounded-0 d-flex justify-content-between align-items-center turq-box">
+                <div
+                  className="card-header size-text text-dark rounded-0 d-flex justify-content-between align-items-center turq-box"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => toggleDropdown(index)}
+                >
                   <div
                     className="item-color1"
                     style={{ wordBreak: "break-word", cursor: "pointer" }}
-                    onClick={() => toggleDropdown(index)}
                   >
-                    {group.sector} {formattedDot} {group.airline}{" "}
-                    {group.agent !== "-" ? group.agent : "-"}{" "}
+                    {group.sector}
+                    {group.agent !== "-" ? group.agent : " - "}{" "}
                     {(() => {
                       const seatsLeft = group.items.reduce(
                         (sum, item) =>
@@ -515,18 +926,14 @@ function StockManagement() {
                     )}
                   </div>
 
-                  <div
-                    className="turq-caret"
-                    role="button"
-                    onClick={() => toggleDropdown(index)}
-                  >
+                  <div className="turq-caret" role="button">
                     {openIndex === index ? "▴" : "▾"}
                   </div>
                 </div>
 
                 {openIndex === index && (
                   <div className="card-body p-0">
-                    <div className="d-flex justify-content-between align-items-center mb-2 px-2 py-2 flex-wrap">
+                    <div className="d-flex justify-content-between align-items-center mb-0 px-2 py-2 flex-wrap">
                       <span className="text-danger me-2">
                         <strong>PNR:</strong> {pnr}
                       </span>
@@ -536,7 +943,18 @@ function StockManagement() {
                       </span>
                     </div>
 
-                    <div className="d-flex flex-row justify-content-center gap-3 align-items-center mt-0 mb-2">
+                    <div className="d-flex justify-content-between gap-1 ms-2 me-2 mt-0 mb-2">
+                      <div>
+                        <span className="fw-bolder">Date:</span> {formattedDot}
+                      </div>
+
+                      <div>
+                        <span className="fw-bolder">Airline:</span>{" "}
+                        {group.airline}{" "}
+                      </div>
+                    </div>
+
+                    <div className="d-flex flex-row justify-content-between gap-3 align-items-center mt-0 mb-2">
                       <span className="text-success1 fw-bold px-2">
                         Total Seats:{" "}
                         <strong>
@@ -546,6 +964,7 @@ function StockManagement() {
                           )}
                         </strong>
                       </span>
+
                       <span className="text-success fw-bold">
                         Seats Sold:{" "}
                         <strong>
@@ -555,6 +974,7 @@ function StockManagement() {
                           )}
                         </strong>
                       </span>
+
                       <span className="text-danger fw-bold pe-1">
                         Seats Left:{" "}
                         <strong className="text-danger">
@@ -581,7 +1001,7 @@ function StockManagement() {
                         </thead>
                         <tbody>
                           {(() => {
-                            const matchingSales = sales.filter(
+                            const matchingSales = salesToUse.filter(
                               (sale) =>
                                 sale.sector?.trim() === group.sector?.trim() &&
                                 sale.dot?.trim() === group.dot?.trim() &&
@@ -592,7 +1012,7 @@ function StockManagement() {
                               return (
                                 <tr>
                                   <td colSpan="4" className="text-danger">
-                                    No Sales
+                                    No sales available.
                                   </td>
                                 </tr>
                               );

@@ -227,7 +227,7 @@ function Staff() {
     }
   };
 
-  const itemsPerPage = 30;
+  const itemsPerPage = 42;
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredStaff = useMemo(() => {

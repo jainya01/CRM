@@ -414,7 +414,6 @@ router.get("/allstocks", async (req, res) => {
       SELECT 
         id, sector, pax, sold, (pax - sold) AS seats_left, dot, fare, airline, pnr, created_at, updated_at
       FROM stock
-      WHERE (pax - sold) > 0
       ORDER BY id DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
@@ -1371,5 +1370,47 @@ router.post("/upload-stock", upload.single("file"), async (req, res) => {
     return res.status(500).json({ error: "Upload failed" });
   }
 });
+
+// optional script(Logic)
+
+// async function archiveOldStocks() {
+//   let connection;
+//   try {
+//     connection = await pool.getConnection();
+//     await connection.beginTransaction();
+
+//     const insertQuery = `
+//       INSERT INTO stock_archive
+//       SELECT *
+//       FROM stock
+//       WHERE 
+//         (LENGTH(dot) = 10 AND SUBSTRING(dot,3,1) = '-' AND STR_TO_DATE(dot, '%d-%m-%Y') < DATE_SUB(CURDATE(), INTERVAL 1 YEAR))
+//         OR
+//         (LENGTH(dot) = 10 AND SUBSTRING(dot,5,1) = '-' AND STR_TO_DATE(dot, '%Y-%m-%d') < DATE_SUB(CURDATE(), INTERVAL 1 YEAR))
+//     `;
+//     const [insertResult] = await connection.query(insertQuery);
+//     console.log(`Archived ${insertResult.affectedRows} rows to stock_archive.`);
+
+//     const deleteQuery = `
+//       DELETE FROM stock
+//       WHERE 
+//         (LENGTH(dot) = 10 AND SUBSTRING(dot,3,1) = '-' AND STR_TO_DATE(dot, '%d-%m-%Y') < DATE_SUB(CURDATE(), INTERVAL 1 YEAR))
+//         OR
+//         (LENGTH(dot) = 10 AND SUBSTRING(dot,5,1) = '-' AND STR_TO_DATE(dot, '%Y-%m-%d') < DATE_SUB(CURDATE(), INTERVAL 1 YEAR))
+//     `;
+//     const [deleteResult] = await connection.query(deleteQuery);
+//     console.log(`Deleted ${deleteResult.affectedRows} rows from stock.`);
+
+//     await connection.commit();
+//     console.log("Archive process completed successfully.");
+//   } catch (err) {
+//     if (connection) await connection.rollback();
+//     console.error("Error during archiving:", err);
+//   } finally {
+//     if (connection) connection.release();
+//   }
+// }
+
+// archiveOldStocks();
 
 export default router;

@@ -24,7 +24,7 @@ function Agent() {
   });
 
   const [search, setSearch] = useState("");
-  const itemsPerPage = 30;
+  const itemsPerPage = 42;
   const [currentPage, setCurrentPage] = useState(1);
   const editNameRef = useRef(null);
 
