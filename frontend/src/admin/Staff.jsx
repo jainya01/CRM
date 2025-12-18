@@ -261,8 +261,6 @@ function Staff() {
     setCurrentPage(1);
   }, [search]);
 
-  const [staff, setStaff] = useState([]);
-
   useEffect(() => {
     const allStaff = async () => {
       try {
@@ -287,30 +285,48 @@ function Staff() {
   const updatePermission = async (agentId, value) => {
     if (!agentId) return;
 
+    setStaffList((prev) =>
+      prev.map((s) => {
+        const id = s.raw?.id ?? s.raw?.agent_id ?? s.raw?.staff_id;
+
+        return id === agentId
+          ? {
+              ...s,
+              raw: {
+                ...s.raw,
+                can_view_fares: value,
+              },
+            }
+          : s;
+      })
+    );
+
     try {
       await axios.put(`${API_URL}/staff/toggle/${agentId}`, {
         field: "can_view_fares",
         value,
       });
 
-      setStaffList((prev) =>
-        prev.map((staff) => {
-          const id =
-            staff.raw?.id ?? staff.raw?.agent_id ?? staff.raw?.staff_id;
-          if (id === agentId) {
-            return {
-              ...staff,
-              raw: { ...staff.raw, can_view_fares: value },
-            };
-          }
-          return staff;
-        })
-      );
-
       toast.success("Permission updated!");
     } catch (err) {
       console.error(err);
       toast.error("Failed to update permission");
+
+      setStaffList((prev) =>
+        prev.map((s) => {
+          const id = s.raw?.id ?? s.raw?.agent_id ?? s.raw?.staff_id;
+
+          return id === agentId
+            ? {
+                ...s,
+                raw: {
+                  ...s.raw,
+                  can_view_fares: value === 1 ? 0 : 1,
+                },
+              }
+            : s;
+        })
+      );
     }
   };
 
@@ -529,17 +545,34 @@ function Staff() {
                                       checked={
                                         Number(staff.raw?.can_view_fares) === 1
                                       }
-                                      onChange={() => {
+                                      onChange={(e) => {
                                         const agentId =
                                           staff.raw?.id ??
                                           staff.raw?.agent_id ??
                                           staff.raw?.staff_id;
 
-                                        const newValue =
-                                          Number(staff.raw?.can_view_fares) ===
-                                          1
-                                            ? 0
-                                            : 1;
+                                        const newValue = e.target.checked
+                                          ? 1
+                                          : 0;
+
+                                        setStaffList((prev) =>
+                                          prev.map((s) => {
+                                            const id =
+                                              s.raw?.id ??
+                                              s.raw?.agent_id ??
+                                              s.raw?.staff_id;
+
+                                            return id === agentId
+                                              ? {
+                                                  ...s,
+                                                  raw: {
+                                                    ...s.raw,
+                                                    can_view_fares: newValue,
+                                                  },
+                                                }
+                                              : s;
+                                          })
+                                        );
 
                                         updatePermission(agentId, newValue);
                                       }}

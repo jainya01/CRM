@@ -79,7 +79,7 @@ function AdminLogin() {
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="form-control form-control-fields rounded-3"
+                className="form-control form-control-fields rounded-5"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
                 required
@@ -92,7 +92,7 @@ function AdminLogin() {
                 <input
                   type={showAdminPassword ? "text" : "password"}
                   placeholder="Password"
-                  className="form-control form-control-fields rounded-3 pe-5"
+                  className="form-control form-control-fields rounded-5 pe-5"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
                   required

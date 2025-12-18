@@ -536,17 +536,15 @@ function Agent() {
                                       checked={
                                         Number(staff.raw?.can_view_agents) === 1
                                       }
-                                      onChange={() => {
+                                      onChange={(e) => {
                                         const agentId =
                                           staff.raw?.id ??
                                           staff.raw?.agent_id ??
                                           staff.raw?.staff_id;
 
-                                        const newValue =
-                                          Number(staff.raw?.can_view_agents) ===
-                                          1
-                                            ? 0
-                                            : 1;
+                                        const newValue = e.target.checked
+                                          ? 1
+                                          : 0;
 
                                         setStaffList((prev) =>
                                           prev.map((s) => {
@@ -606,17 +604,15 @@ function Agent() {
                                       checked={
                                         Number(staff.raw?.can_view_fares) === 1
                                       }
-                                      onChange={() => {
+                                      onChange={(e) => {
                                         const agentId =
                                           staff.raw?.id ??
                                           staff.raw?.agent_id ??
                                           staff.raw?.staff_id;
 
-                                        const newValue =
-                                          Number(staff.raw?.can_view_fares) ===
-                                          1
-                                            ? 0
-                                            : 1;
+                                        const newValue = e.target.checked
+                                          ? 1
+                                          : 0;
 
                                         setStaffList((prev) =>
                                           prev.map((s) => {
