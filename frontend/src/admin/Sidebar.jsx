@@ -65,6 +65,35 @@ export default function Sidebar() {
   const role = resolveRole();
   const location = useLocation();
 
+  const uploadsBase = API_URL
+    ? API_URL.replace(/\/api\/?$/, "") + "/uploads"
+    : "/uploads";
+
+  useEffect(() => {
+    const mainLogo = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/get-logo`);
+
+        let logoUrl = null;
+
+        if (response.data?.logo?.logo) {
+          logoUrl = `${uploadsBase}/${response.data.logo.logo}`;
+        }
+
+        if (logoUrl) {
+          setLogo(`${logoUrl}?v=${Date.now()}`);
+        } else {
+          setLogo(null);
+        }
+      } catch (error) {
+        console.error("Logo fetch error:", error);
+        setLogo(null);
+      }
+    };
+
+    mainLogo();
+  }, [API_URL, uploadsBase]);
+
   useEffect(() => {
     const lastSeenOTB =
       parseInt(localStorage.getItem("lastSeenOTBCreatedAt")) || 0;

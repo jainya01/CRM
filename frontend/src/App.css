@@ -532,7 +532,7 @@ aside.admin-sidebar {
   grid-template-columns: repeat(3, 1fr);
   gap: 15px;
   align-items: start;
-  margin: 20px;
+  margin: 10px;
 }
 
 @media (max-width: 992px) {
@@ -807,6 +807,12 @@ aside.admin-sidebar {
 @media (max-width: 576px) {
   .email-list {
     max-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .controll-size {
+    font-size: 14px !important;
   }
 }
 

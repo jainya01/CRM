@@ -853,22 +853,22 @@ function Dashboard() {
                             {formatDot(item.dot)}
                           </div>
 
-                          <div>
+                          <div className="text-end">
                             <span className="fw-bold">Airline:</span>{" "}
                             {item.airline}
                           </div>
                         </div>
 
                         <div className="d-flex flex-row justify-content-between gap-3 align-items-center mt-0 mb-2">
-                          <span className="text-success1 fw-bold">
+                          <span className="text-success fw-bold">
                             Total Seats: <strong>{totalSeats}</strong>
                           </span>
 
-                          <span className="text-success fw-bold">
+                          <span className="text-success fw-bold text-center">
                             Seats Sold: <strong>{seatsSold}</strong>
                           </span>
 
-                          <span className="text-danger fw-bold pe-1">
+                          <span className="text-danger fw-bold pe-1 text-end">
                             Seats Left:{" "}
                             <strong className="text-danger">{seatsLeft}</strong>
                           </span>

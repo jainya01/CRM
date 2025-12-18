@@ -790,7 +790,7 @@ function Sales() {
                 </div>
 
                 {openIndex === cardKey && (
-                  <div className="card-body p-0">
+                  <div className="card-body p-0 controll-size">
                     <div className="d-flex justify-content-between align-items-center mb-0 px-2 py-2 flex-wrap">
                       <span className="text-danger me-2">
                         <strong>PNR:</strong> {pnr}
@@ -806,7 +806,8 @@ function Sales() {
                         {" "}
                         <span className="fw-bold">Date:</span> {headerText1}
                       </div>
-                      <div>
+
+                      <div className="text-end">
                         <span className="fw-bold">Airline:</span> {headerText2}
                       </div>
                     </div>
