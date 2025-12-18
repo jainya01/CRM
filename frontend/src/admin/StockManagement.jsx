@@ -900,13 +900,15 @@ function StockManagement() {
                     {group.sector}
                     {group.agent !== "-" ? group.agent : " - "}{" "}
                     {(() => {
-                      const seatsLeft = group.items.reduce(
+                      const seatsLeftRaw = group.items.reduce(
                         (sum, item) =>
                           sum +
                           ((parseInt(item.pax, 10) || 0) -
                             (parseInt(item.sold, 10) || 0)),
                         0
                       );
+
+                      const seatsLeft = Math.max(0, seatsLeftRaw);
 
                       return (
                         <span
@@ -983,12 +985,15 @@ function StockManagement() {
                       <span className="text-danger fw-bold pe-1 text-end">
                         Seats Left:{" "}
                         <strong className="text-danger">
-                          {group.items.reduce(
-                            (sum, item) =>
-                              sum +
-                              ((parseInt(item.pax, 10) || 0) -
-                                (parseInt(item.sold, 10) || 0)),
-                            0
+                          {Math.max(
+                            0,
+                            group.items.reduce(
+                              (sum, item) =>
+                                sum +
+                                ((parseInt(item.pax, 10) || 0) -
+                                  (parseInt(item.sold, 10) || 0)),
+                              0
+                            )
                           )}
                         </strong>
                       </span>
