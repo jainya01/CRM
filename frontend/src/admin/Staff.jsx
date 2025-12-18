@@ -33,15 +33,16 @@ function Staff() {
       try {
         const response = await axios.get(`${API_URL}/allstaffs`, { signal });
 
-        const staffRaw = Array.isArray(response.data)
-          ? response.data
-          : response.data?.data || [];
+        const staffRaw = response.data?.data || [];
 
         const formattedData = staffRaw.map((s) => ({
           staff_agent: s.staff_agent ?? "",
           staff_email: s.staff_email ?? "",
           staff_password: s.staff_password ?? "",
-          raw: s,
+          raw: {
+            ...s,
+            can_view_fares: Number(s.can_view_fares) === 1 ? 1 : 0,
+          },
         }));
 
         setStaffList(formattedData);
@@ -260,27 +261,6 @@ function Staff() {
   useEffect(() => {
     setCurrentPage(1);
   }, [search]);
-
-  useEffect(() => {
-    const allStaff = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/allstaffs`);
-
-        const list = res.data?.data || [];
-
-        const normalized = list.map((s) => ({
-          ...s,
-          can_view_fares: Number(s.can_view_fares) === 1 ? 1 : 0,
-        }));
-
-        setStaff(normalized);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    allStaff();
-  }, [API_URL]);
 
   const updatePermission = async (agentId, value) => {
     if (!agentId) return;
