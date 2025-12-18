@@ -307,18 +307,20 @@ function Dashboard() {
       const filtered = stockList.filter((s) => {
         if (isDotExpired(s.dot)) return false;
 
-        let sectorRaw = (s.sector || "").toLowerCase();
-
-        sectorRaw = sectorRaw
+        let sectorRaw = (s.sector || "")
+          .toLowerCase()
+          .replace(/[–—→]/g, "-")
           .replace(/\s+to\s+/g, "-")
-          .replace(/\s*→\s*/g, "-")
           .replace(/\s*\/\s*/g, "-")
-          .replace(/\s*-\s*/g, "-")
+          .replace(/\s+/g, " ")
           .trim();
 
-        const [sectorOrigin = "", sectorDestination = ""] = sectorRaw
-          .split("-")
-          .map((p) => p.trim());
+        const parts = sectorRaw.split(/[\s-]+/).filter(Boolean);
+
+        if (parts.length < 2) return false;
+
+        const sectorOrigin = parts[0];
+        const sectorDestination = parts[parts.length - 1];
 
         let matchesSector = true;
 
@@ -364,11 +366,23 @@ function Dashboard() {
   const totalPax = useMemo(() => {
     if (!Array.isArray(filteredStockList) || filteredStockList.length === 0)
       return 0;
-    return filteredStockList.reduce((sum, it) => {
-      const paxNum = Number(it.pax);
-      return sum + (isNaN(paxNum) ? 0 : paxNum);
+
+    return filteredStockList.reduce((sum, stock) => {
+      const totalSeats = Number(stock.pax) || 0;
+
+      let soldSeats = Number(stock.sold) || 0;
+
+      if (!stock.sold && Array.isArray(sales)) {
+        soldSeats = sales.filter(
+          (s) => String(s.stock_id) === String(stock.id)
+        ).length;
+      }
+
+      const seatsLeft = Math.max(0, totalSeats - soldSeats);
+
+      return sum + seatsLeft;
     }, 0);
-  }, [filteredStockList]);
+  }, [filteredStockList, sales]);
 
   function parseToDateObj(value) {
     if (!value) return null;
