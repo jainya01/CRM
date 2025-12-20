@@ -840,7 +840,7 @@ function Sales() {
                                   <strong>COST:</strong> {fare}/- &nbsp;
                                 </span>
 
-                                <span className="text-danger">
+                                <span className="text-danger text-end">
                                   <span className="fw-bold">SUPPLIER:</span> AL
                                   HAMD
                                 </span>
