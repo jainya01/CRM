@@ -338,6 +338,7 @@ function Sales() {
       dotb: stock.dotb,
       airline: stock.airline,
       agent: stock.agent,
+      flightno: stock.flightno,
     };
     if (stock.stock_id) payload.stock_id = stock.stock_id;
 
@@ -356,6 +357,7 @@ function Sales() {
           dotb: "",
           airline: "",
           agent: "",
+          flightno: "",
         });
         setSelectedStockId("");
       } else {
@@ -533,18 +535,22 @@ function Sales() {
     const map = new Map();
     staff.forEach((item) => {
       const sector = (item.sector ?? "").toString().trim();
-      const dot = (item.dot ?? "").toString().trim();
-      const airline = (item.airline ?? "").toString().trim();
 
-      const key = `${sector}||${dot}||${airline}`;
+      const key = sector;
 
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(item);
     });
 
     return Array.from(map.entries()).map(([key, items]) => {
-      const [sector, dot, airline] = key.split("||");
-      return { key, sector, dot, airline, items };
+      const firstItem = items[0] ?? {};
+      return {
+        key,
+        sector: key,
+        dot: firstItem.dot ?? "-",
+        airline: firstItem.airline ?? "-",
+        items,
+      };
     });
   }, [staff]);
 
@@ -554,6 +560,29 @@ function Sales() {
   }, [groupedSales, currentPage]);
 
   const totalPages = Math.ceil((groupedSales?.length || 0) / itemsPerPage);
+
+  const groupedBySector = useMemo(() => {
+    if (!paginatedGroups || paginatedGroups.length === 0) return [];
+
+    const map = new Map();
+
+    paginatedGroups.forEach((group) => {
+      const sector = group.sector?.trim() || "Unknown";
+      if (!map.has(sector)) {
+        map.set(sector, []);
+      }
+      map.get(sector).push(...(group.items ?? []));
+    });
+
+    return Array.from(map.entries()).map(([sector, items]) => {
+      const flightno = items[0]?.flightno ?? "-";
+      return {
+        sector,
+        items,
+        flightno,
+      };
+    });
+  }, [paginatedGroups]);
 
   return (
     <div className="content-wrapper">
@@ -759,15 +788,8 @@ function Sales() {
       </div>
 
       <div className="sales-grid grid-container">
-        {paginatedGroups.map((group) => {
-          const first = group.items[0] ?? {};
-          const pnr = first.pnr ?? "-";
-          const fare = first.fare ?? "-";
-          const cardKey = group.key;
-          const formattedDot = formatDot(group.dot);
-          const headerText = `${group.sector}`;
-          const headerText1 = `${formattedDot}`;
-          const headerText2 = `${group.airline}`;
+        {groupedBySector.map((group) => {
+          const cardKey = group.sector;
 
           return (
             <div key={cardKey} className="card-wrapper">
@@ -781,7 +803,7 @@ function Sales() {
                     className="item-color1"
                     style={{ wordBreak: "break-word", cursor: "pointer" }}
                   >
-                    {headerText}
+                    {group.sector}
                   </div>
 
                   <div className="turq-caret" role="button">
@@ -790,39 +812,66 @@ function Sales() {
                 </div>
 
                 {openIndex === cardKey && (
-                  <div className="card-body p-0 controll-size">
-                    <div className="d-flex justify-content-between align-items-center mb-0 px-2 py-2 flex-wrap">
-                      <span className="text-danger me-2">
-                        <strong>PNR:</strong> {pnr}
-                      </span>
+                  <div className="card-body p-2 controll-size">
+                    {(() => {
+                      const uniquePnrMap = new Map();
+                      group.items.forEach((item) => {
+                        if (!uniquePnrMap.has(item.pnr)) {
+                          uniquePnrMap.set(item.pnr, item);
+                        }
+                      });
+                      const uniquePnrItems = Array.from(uniquePnrMap.values());
 
-                      <span className="text-danger">
-                        <strong>COST:</strong> {fare}/-
-                      </span>
-                    </div>
+                      return uniquePnrItems.map((item, idx) => {
+                        const pnr = item.pnr ?? "-";
+                        const fare = item.fare ?? "-";
+                        const dot = formatDot(item.dot) ?? "-";
+                        const airline = item.airline ?? "-";
 
-                    <div className="d-flex justify-content-between gap-1 mt-0 mb-2 ms-2 me-3">
-                      <div>
-                        {" "}
-                        <span className="fw-bold">Date:</span> {headerText1}
-                      </div>
+                        return (
+                          <div key={item.id ?? idx} className="mb-1">
+                            <div className="border border-success px-2 py-2 rounded-1">
+                              <div className="d-flex flex-row justify-content-between">
+                                <span className="text-danger">
+                                  <strong>PNR:</strong> {pnr} &nbsp;
+                                </span>
 
-                      <div className="text-end">
-                        <span className="fw-bold">Airline:</span> {headerText2}
-                      </div>
-                    </div>
+                                <span className="text-danger text-end">
+                                  <strong>COST:</strong> {fare}/- &nbsp;
+                                </span>
+
+                                <span className="text-danger">
+                                  <span className="fw-bold">SUPPLIER:</span> AL
+                                  HAMD
+                                </span>
+                              </div>
+                              <hr className="mt-1 mb-1" />
+
+                              <div className="d-flex flex-row justify-content-between">
+                                <span>
+                                  <strong>Date:</strong> {dot} &nbsp;
+                                </span>
+
+                                <span className="text-end">
+                                  <strong>Airline:</strong> {airline}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
 
                     <div className="table-responsive">
                       <table className="table table-bordered table-striped text-center table-sm mb-0">
                         <thead className="table-light">
                           <tr>
-                            <th style={{ width: "15%" }}>SL. NO</th>
+                            <th style={{ width: "15%" }}>SL.NO</th>
                             <th style={{ width: "30%" }}>PAX Name</th>
                             <th style={{ width: "30%" }}>DATE</th>
                             <th style={{ width: "25%" }}>AGENT</th>
                           </tr>
                         </thead>
-
                         <tbody>
                           {(() => {
                             const items = group.items ?? [];
@@ -884,9 +933,11 @@ function Sales() {
                                       >
                                         Prev
                                       </button>
+
                                       <span className="mx-2">
                                         Page {currentPage} of {totalPages}
                                       </span>
+
                                       <button
                                         className="btn btn-sm btn-success mx-1"
                                         disabled={currentPage === totalPages}
@@ -918,7 +969,7 @@ function Sales() {
           );
         })}
 
-        {paginatedGroups.length === 0 && (
+        {groupedBySector.length === 0 && (
           <div className="col-12 text-center text-danger">
             No sales available.
           </div>

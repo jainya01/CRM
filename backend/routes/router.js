@@ -363,19 +363,19 @@ router.post("/stafflogin", async (req, res) => {
 
 router.post("/stockpost", async (req, res) => {
   try {
-    const { sector, pax, dot, fare, airline, pnr } = req.body;
+    const { sector, pax, dot, fare, airline, flightno, pnr } = req.body;
 
     if (!sector || !pax || !dot || !fare || !airline || !pnr) {
       return res.status(400).json({
         success: false,
         message:
-          "All fields (sector, pax, dot, fare, airline, pnr) are required.",
+          "All fields (sector, pax, dot, fare, airline, pnr) are required. Flight number is optional.",
       });
     }
 
     const sql = `
-      INSERT INTO stock (sector, pax, dot, fare, airline, pnr)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO stock (sector, pax, dot, fare, airline, flightno, pnr)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await pool.execute(sql, [
@@ -384,6 +384,7 @@ router.post("/stockpost", async (req, res) => {
       dot,
       fare,
       airline,
+      flightno || null,
       pnr,
     ]);
 
@@ -412,7 +413,7 @@ router.get("/allstocks", async (req, res) => {
 
     const sql = `
       SELECT 
-        id, sector, pax, sold, (pax - sold) AS seats_left, dot, fare, airline, pnr, created_at, updated_at
+        id, sector, pax, sold, (pax - sold) AS seats_left, dot, fare, airline, flightno, pnr, created_at, updated_at
       FROM stock
       ORDER BY id DESC
       LIMIT ${limit} OFFSET ${offset}
@@ -1344,11 +1345,12 @@ router.post("/upload-stock", upload.single("file"), async (req, res) => {
       const fare = row["Fare"] ? Number(row["Fare"]) : null;
       const airline = row["Airline"] ?? null;
       const pnr = row["PNR"] ?? null;
+      const flightno = row["FlightNo"] ?? row["flightno"] ?? null;
       const dot = parseDotValue(row["Dot"]);
 
       if (!sector || !dot) continue;
 
-      values.push([sector, pax, dot, fare, airline, pnr]);
+      values.push([sector, pax, dot, fare, airline, flightno, pnr]);
     }
 
     if (!values.length) {
@@ -1356,7 +1358,7 @@ router.post("/upload-stock", upload.single("file"), async (req, res) => {
     }
 
     await pool.query(
-      `INSERT INTO stock (sector, pax, dot, fare, airline, pnr)
+      `INSERT INTO stock (sector, pax, dot, fare, airline, flightno, pnr)
        VALUES ?`,
       [values]
     );
@@ -1383,7 +1385,7 @@ router.post("/upload-stock", upload.single("file"), async (req, res) => {
 //       INSERT INTO stock_archive
 //       SELECT *
 //       FROM stock
-//       WHERE 
+//       WHERE
 //         (LENGTH(dot) = 10 AND SUBSTRING(dot,3,1) = '-' AND STR_TO_DATE(dot, '%d-%m-%Y') < DATE_SUB(CURDATE(), INTERVAL 1 YEAR))
 //         OR
 //         (LENGTH(dot) = 10 AND SUBSTRING(dot,5,1) = '-' AND STR_TO_DATE(dot, '%Y-%m-%d') < DATE_SUB(CURDATE(), INTERVAL 1 YEAR))
@@ -1393,7 +1395,7 @@ router.post("/upload-stock", upload.single("file"), async (req, res) => {
 
 //     const deleteQuery = `
 //       DELETE FROM stock
-//       WHERE 
+//       WHERE
 //         (LENGTH(dot) = 10 AND SUBSTRING(dot,3,1) = '-' AND STR_TO_DATE(dot, '%d-%m-%Y') < DATE_SUB(CURDATE(), INTERVAL 1 YEAR))
 //         OR
 //         (LENGTH(dot) = 10 AND SUBSTRING(dot,5,1) = '-' AND STR_TO_DATE(dot, '%Y-%m-%d') < DATE_SUB(CURDATE(), INTERVAL 1 YEAR))

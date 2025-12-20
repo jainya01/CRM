@@ -108,6 +108,7 @@ function StockManagement() {
     dot: "",
     fare: "",
     airline: "",
+    flightno: "",
     pnr: "",
   });
 
@@ -144,6 +145,7 @@ function StockManagement() {
           dot: "",
           fare: "",
           airline: "",
+          flightno: "",
           pnr: "",
         });
       } else {
@@ -228,12 +230,7 @@ function StockManagement() {
     }
   }, [selectedFilter, staff, sales]);
 
-  function toggleMonthPopover() {
-    if (month) {
-      setMonth(false);
-      return;
-    }
-
+  const updatePopoverPosition = () => {
     const pill = monthPillRef.current;
     if (!pill) return;
 
@@ -246,15 +243,29 @@ function StockManagement() {
     let left = rect.left + rect.width / 2 - cardWidth / 2;
 
     if (left < margin) left = margin;
+
     if (left + cardWidth > window.innerWidth - margin) {
       left = window.innerWidth - cardWidth - margin;
+    }
+
+    const estimatedHeight = 260;
+    if (top + estimatedHeight > window.innerHeight) {
+      top = rect.top - estimatedHeight - gap;
     }
 
     setPopoverStyle({
       top: `${top}px`,
       left: `${left}px`,
     });
+  };
 
+  function toggleMonthPopover() {
+    if (month) {
+      setMonth(false);
+      return;
+    }
+
+    updatePopoverPosition();
     setMonth(true);
   }
 
@@ -263,14 +274,19 @@ function StockManagement() {
   }, [selectedFilter]);
 
   useEffect(() => {
-    function handleClickOutside(e) {
-      if (monthPillRef.current?.contains(e.target)) return;
-      if (popoverRef.current?.contains(e.target)) return;
-      setMonth(false);
-    }
+    if (!month) return;
 
-    if (month) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    const handleUpdate = () => updatePopoverPosition();
+
+    window.addEventListener("resize", handleUpdate);
+    window.addEventListener("scroll", handleUpdate, true);
+    window.addEventListener("orientationchange", handleUpdate);
+
+    return () => {
+      window.removeEventListener("resize", handleUpdate);
+      window.removeEventListener("scroll", handleUpdate, true);
+      window.removeEventListener("orientationchange", handleUpdate);
+    };
   }, [month]);
 
   function applyCustomRange() {
@@ -444,20 +460,18 @@ function StockManagement() {
 
     (Array.isArray(stocksToUse) ? stocksToUse : []).forEach((item) => {
       const sector = (item.sector ?? "").trim();
-      const dot = (item.dot ?? "").trim();
-      const airline = (item.airline ?? "").trim();
-      const agent = (item.agent ?? "-").trim() || "-";
-
-      const key = `${sector}||${dot}||${airline}||${agent}`;
+      const key = sector;
 
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(item);
     });
 
-    return Array.from(map.entries()).map(([key, items]) => {
-      const [sector, dot, airline, agent] = key.split("||");
-      return { key, sector, dot, airline, agent, items };
-    });
+    return Array.from(map.entries()).map(([sector, items]) => ({
+      key: sector,
+      sector,
+      flightno: items[0]?.flightno ?? "-",
+      items,
+    }));
   }, [stocksToUse]);
 
   const filteredGroups = useMemo(() => {
@@ -648,6 +662,16 @@ function StockManagement() {
             required
           />
 
+          <input
+            type="search"
+            className="form-control sector-link1"
+            placeholder="Flight No"
+            name="flightno"
+            value={stock.flightno}
+            onChange={handleChange}
+            required
+          />
+
           <button
             className="btn btn-light sector-link submit-btn"
             type="submit"
@@ -655,12 +679,13 @@ function StockManagement() {
             Submit
           </button>
 
-          <div style={{ position: "relative" }}>
+          <div className="add-bulk-wrapper">
             <button
               ref={addBulkBtnRef}
               type="button"
               className="btn btn-light sector-link sales-btn"
               onClick={() => setShowModal((prev) => !prev)}
+              style={{ position: "relative" }}
             >
               Add Bulk
             </button>
@@ -684,8 +709,7 @@ function StockManagement() {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-secondary btn-sm"
-                    style={{ marginLeft: "10px" }}
+                    className="btn btn-secondary btn-sm ms-2"
                     onClick={() => setShowModal(false)}
                   >
                     Cancel
@@ -723,6 +747,7 @@ function StockManagement() {
                   className="spending-card mt-2 me-2 text-start"
                   aria-modal="true"
                   role="dialog"
+                  style={popoverStyle}
                 >
                   <h5 className="title fw-bold text-dark text-start">
                     Show Date
@@ -875,12 +900,18 @@ function StockManagement() {
 
       <div className="row p-3">
         {paginatedGroups.map((group, index) => {
-          const first = group.items[0] ?? {};
-          const formattedDot = formatDot(group.dot);
-
-          const pnr = first.pnr ?? "-";
-          const fare = first.fare ?? "-";
           const isExpired = group.items.some((it) => isDotExpired(it.dot));
+
+          const totalSeats = group.items.reduce(
+            (sum, item) => sum + (parseInt(item.pax, 10) || 0),
+            0
+          );
+
+          const totalSold = group.items.reduce(
+            (sum, item) => sum + (parseInt(item.sold, 10) || 0),
+            0
+          );
+          const totalLeft = Math.max(0, totalSeats - totalSold);
 
           return (
             <div
@@ -895,34 +926,18 @@ function StockManagement() {
                 >
                   <div
                     className="item-color1"
-                    style={{ wordBreak: "break-word", cursor: "pointer" }}
+                    style={{ wordBreak: "break-word" }}
                   >
-                    {group.sector}
-                    {group.agent !== "-" ? group.agent : " - "}{" "}
-                    {(() => {
-                      const seatsLeftRaw = group.items.reduce(
-                        (sum, item) =>
-                          sum +
-                          ((parseInt(item.pax, 10) || 0) -
-                            (parseInt(item.sold, 10) || 0)),
-                        0
-                      );
-
-                      const seatsLeft = Math.max(0, seatsLeftRaw);
-
-                      return (
-                        <span
-                          className={
-                            isExpired
-                              ? "text-danger fw-bold"
-                              : "text-success fw-bold"
-                          }
-                        >
-                          {seatsLeft}{" "}
-                          {isExpired ? "Seats Unsold" : "Seats Left"}
-                        </span>
-                      );
-                    })()}
+                    {group.sector} | {group.flightno} |{" "}
+                    <span
+                      className={
+                        isExpired
+                          ? "text-danger fw-bold"
+                          : "text-success fw-bold"
+                      }
+                    >
+                      {totalLeft} {isExpired ? "Seats Unsold" : "Seats Left"}
+                    </span>
                     {isExpired && (
                       <span
                         className="badge bg-danger ms-2"
@@ -933,78 +948,70 @@ function StockManagement() {
                     )}
                   </div>
 
-                  <div className="turq-caret" role="button">
+                  <div className="turq-caret">
                     {openIndex === index ? "▴" : "▾"}
                   </div>
                 </div>
 
                 {openIndex === index && (
-                  <div className="card-body p-0 controll-size">
-                    <div className="d-flex justify-content-between align-items-center mb-0 px-2 py-2 flex-wrap">
-                      <span className="text-danger me-2">
-                        <strong>PNR:</strong> {pnr}
-                      </span>
-                      <span className="text-danger">
-                        <strong>COST:</strong>{" "}
-                        {fare !== "-" ? `${fare}/-` : "-"}
-                      </span>
-                    </div>
+                  <div className="card-body p-2 controll-size">
+                    {group.items.map((item, idx) => {
+                      const left = Math.max(
+                        0,
+                        (parseInt(item.pax, 10) || 0) -
+                          (parseInt(item.sold, 10) || 0)
+                      );
 
-                    <div className="d-flex justify-content-between gap-1 ms-2 me-2 mt-0 mb-2">
-                      <div>
-                        <span className="fw-bolder">Date:</span> {formattedDot}
-                      </div>
+                      return (
+                        <div
+                          key={idx}
+                          className="border border-success rounded mb-2 p-2"
+                        >
+                          <div className="d-flex justify-content-between flex-wrap">
+                            <span className="text-danger fw-bold">
+                              PNR: {item.pnr ?? "-"}
+                            </span>
+                            <span className="text-danger fw-bold">
+                              COST: {item.fare ? `${item.fare}/-` : "-"}
+                            </span>
 
-                      <div className="text-end">
-                        <span className="fw-bolder">Airline:</span>{" "}
-                        {group.airline}{" "}
-                      </div>
-                    </div>
+                            <span className="text-danger">
+                              <span className="fw-bold">SUPPLIER:</span> AL HAMD
+                            </span>
+                          </div>
+                          <div className="border-bottom mt-2 mb-1"></div>
 
-                    <div className="d-flex flex-row justify-content-between gap-3 align-items-center mt-0 mb-2">
-                      <span className="text-success1 fw-bold px-2">
-                        Total Seats:{" "}
-                        <strong>
-                          {group.items.reduce(
-                            (sum, item) => sum + (parseInt(item.pax, 10) || 0),
-                            0
-                          )}
-                        </strong>
-                      </span>
+                          <div className="d-flex justify-content-between mt-1">
+                            <span>
+                              <strong>Date:</strong> {formatDot(item.dot)}
+                            </span>
+                            <span>
+                              <strong>Airline:</strong> {item.airline}
+                            </span>
+                          </div>
+                          <div className="border-bottom mt-2 mb-1"></div>
 
-                      <span className="text-success fw-bold text-center">
-                        Seats Sold:{" "}
-                        <strong>
-                          {group.items.reduce(
-                            (sum, item) => sum + (parseInt(item.sold, 10) || 0),
-                            0
-                          )}
-                        </strong>
-                      </span>
+                          <div className="d-flex justify-content-between mt-1">
+                            <span className="text-success fw-bold">
+                              Total Seats: {item.pax ?? 0}
+                            </span>
+                            <span className="text-success fw-bold">
+                              Sold: {item.sold ?? 0}
+                            </span>
+                            <span className="text-danger fw-bold">
+                              Left: {left}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
 
-                      <span className="text-danger fw-bold pe-1 text-end">
-                        Seats Left:{" "}
-                        <strong className="text-danger">
-                          {Math.max(
-                            0,
-                            group.items.reduce(
-                              (sum, item) =>
-                                sum +
-                                ((parseInt(item.pax, 10) || 0) -
-                                  (parseInt(item.sold, 10) || 0)),
-                              0
-                            )
-                          )}
-                        </strong>
-                      </span>
-                    </div>
-
-                    <div className="table-responsive">
-                      <table className="table table-bordered table-striped text-center table-sm mb-0">
+                    <div className="table-responsive mt-2">
+                      <table className="table table-bordered table-striped table-sm text-center mb-0">
                         <thead className="table-light">
                           <tr>
-                            <th style={{ width: "20%" }}>SL. NO</th>
-                            <th style={{ width: "25%" }}>PAX NAME</th>
+                            <th style={{ width: "15%" }}>SL.NO</th>
+                            <th style={{ width: "30%" }}>PAX NAME</th>
                             <th style={{ width: "30%" }}>DATE</th>
                             <th style={{ width: "25%" }}>AGENT</th>
                           </tr>
@@ -1013,9 +1020,7 @@ function StockManagement() {
                           {(() => {
                             const matchingSales = salesToUse.filter(
                               (sale) =>
-                                sale.sector?.trim() === group.sector?.trim() &&
-                                sale.dot?.trim() === group.dot?.trim() &&
-                                sale.airline?.trim() === group.airline?.trim()
+                                sale.sector?.trim() === group.sector?.trim()
                             );
 
                             if (matchingSales.length === 0) {
@@ -1029,10 +1034,9 @@ function StockManagement() {
                             }
 
                             const salesPerPage = 7;
-
                             const salesPage = salesPageState[group.key] || 1;
-
                             const start = (salesPage - 1) * salesPerPage;
+
                             const paginatedSales = matchingSales.slice(
                               start,
                               start + salesPerPage
@@ -1042,36 +1046,24 @@ function StockManagement() {
                               matchingSales.length / salesPerPage
                             );
 
-                            const goToPage = (p) => {
+                            const goToPage = (p) =>
                               setSalesPageState((prev) => ({
                                 ...prev,
                                 [group.key]: p,
                               }));
-                            };
 
                             return (
                               <>
-                                {Array.isArray(paginatedSales) &&
-                                paginatedSales.length > 0 ? (
-                                  paginatedSales.map((sale, idx) => (
-                                    <tr key={sale.id ?? idx}>
-                                      <td>{start + idx + 1}</td>
-                                      <td>{sale.pax ?? "-"}</td>
-                                      <td style={{ whiteSpace: "nowrap" }}>
-                                        {formatDot(
-                                          sale.dotb ?? sale.dot ?? "-"
-                                        )}
-                                      </td>
-                                      <td>{sale.agent ?? "-"}</td>
-                                    </tr>
-                                  ))
-                                ) : (
-                                  <tr>
-                                    <td colSpan="4" className="text-danger">
-                                      No Sales Available
+                                {paginatedSales.map((sale, idx) => (
+                                  <tr key={sale.id ?? idx}>
+                                    <td>{start + idx + 1}</td>
+                                    <td>{sale.pax ?? "-"}</td>
+                                    <td style={{ whiteSpace: "nowrap" }}>
+                                      {formatDot(sale.dotb ?? sale.dot)}
                                     </td>
+                                    <td>{sale.agent ?? "-"}</td>
                                   </tr>
-                                )}
+                                ))}
 
                                 {matchingSales.length > salesPerPage && (
                                   <tr>
@@ -1086,7 +1078,7 @@ function StockManagement() {
                                         Prev
                                       </button>
 
-                                      <span className="small text-dark mx-2">
+                                      <span className="small mx-2">
                                         Page {salesPage} of {totalSalesPages}
                                       </span>
 

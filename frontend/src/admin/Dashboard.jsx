@@ -10,6 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { exportAirlineExcel } from "../utils/exportExcel";
 
 function Dashboard() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -303,6 +304,7 @@ function Dashboard() {
       const originQ = origin.trim().toLowerCase();
       const destinationQ = destination.trim().toLowerCase();
       const dateQ = stock.dot ? parseToDateObj(stock.dot) : null;
+      const pnrQ = (stock.pnr || "").trim().toLowerCase();
 
       const filtered = stockList.filter((s) => {
         if (isDotExpired(s.dot)) return false;
@@ -316,7 +318,6 @@ function Dashboard() {
           .trim();
 
         const parts = sectorRaw.split(/[\s-]+/).filter(Boolean);
-
         if (parts.length < 2) return false;
 
         const sectorOrigin = parts[0];
@@ -333,18 +334,26 @@ function Dashboard() {
           matchesSector = sectorDestination.endsWith(destinationQ);
         }
 
-        let matchesDate = true;
+        if (!matchesSector) return false;
+
         if (dateQ) {
           const sDate = parseToDateObj(s.dot);
           if (!sDate) return false;
 
-          matchesDate =
+          const sameDate =
             sDate.getFullYear() === dateQ.getFullYear() &&
             sDate.getMonth() === dateQ.getMonth() &&
             sDate.getDate() === dateQ.getDate();
+
+          if (!sameDate) return false;
         }
 
-        return matchesSector && matchesDate;
+        if (pnrQ) {
+          const stockPnr = (s.pnr || "").toLowerCase();
+          if (!stockPnr.includes(pnrQ)) return false;
+        }
+
+        return true;
       });
 
       setFilteredStockList(filtered);
@@ -353,15 +362,40 @@ function Dashboard() {
     }
   };
 
-  const totalPages = useMemo(() => {
-    return Math.ceil((filteredStockList?.length || 0) / itemsPerPage);
+  const groupedBySectorAll = useMemo(() => {
+    if (!Array.isArray(filteredStockList)) return [];
+
+    const map = {};
+    filteredStockList.forEach((item) => {
+      const sectorKey = (item.sector || "").trim().toLowerCase();
+      if (!map[sectorKey]) map[sectorKey] = { sector: item.sector, items: [] };
+      map[sectorKey].items.push(item);
+    });
+    return Object.values(map);
   }, [filteredStockList]);
+
+  const totalPages = useMemo(() => {
+    return Math.ceil((groupedBySectorAll.length || 0) / itemsPerPage);
+  }, [groupedBySectorAll.length, itemsPerPage]);
+
+  const paginatedGroupedSectors = useMemo(() => {
+    if (!Array.isArray(groupedBySectorAll)) return [];
+
+    const start = (currentPage - 1) * itemsPerPage;
+    return groupedBySectorAll.slice(start, start + itemsPerPage);
+  }, [groupedBySectorAll, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages]);
 
   const paginatedList = useMemo(() => {
     if (!Array.isArray(filteredStockList)) return [];
     const start = (currentPage - 1) * itemsPerPage;
     return filteredStockList.slice(start, start + itemsPerPage);
-  }, [filteredStockList, currentPage]);
+  }, [filteredStockList, currentPage, itemsPerPage]);
 
   const totalPax = useMemo(() => {
     if (!Array.isArray(filteredStockList) || filteredStockList.length === 0)
@@ -383,6 +417,18 @@ function Dashboard() {
       return sum + seatsLeft;
     }, 0);
   }, [filteredStockList, sales]);
+
+  const groupedBySector = useMemo(() => {
+    if (!Array.isArray(paginatedList)) return [];
+
+    const map = {};
+    paginatedList.forEach((item) => {
+      const sectorKey = (item.sector || "").trim().toLowerCase();
+      if (!map[sectorKey]) map[sectorKey] = { sector: item.sector, items: [] };
+      map[sectorKey].items.push(item);
+    });
+    return Object.values(map);
+  }, [paginatedList]);
 
   function parseToDateObj(value) {
     if (!value) return null;
@@ -633,6 +679,16 @@ function Dashboard() {
                     }
                   />
                 </div>
+
+                <input
+                  type="text"
+                  className="form-control pnr-wise"
+                  placeholder="PNR Number"
+                  value={stock.pnr}
+                  onChange={(e) =>
+                    setStock((prev) => ({ ...prev, pnr: e.target.value }))
+                  }
+                />
               </>
             )}
 
@@ -693,7 +749,7 @@ function Dashboard() {
                     totalPax > 0 ? "text-success" : "text-danger"
                   }`}
                 >
-                  Total {totalPax} Seats available.
+                  Total {totalPax} Seats available
                 </span>
               </div>
             </div>
@@ -757,236 +813,228 @@ function Dashboard() {
           </div>
 
           <div className="col-12 col-lg-4">
-            {Array.isArray(paginatedList) && paginatedList.length > 0 ? (
-              paginatedList.map((item, idx) => {
+            {Array.isArray(groupedBySector) && groupedBySector.length > 0 ? (
+              paginatedGroupedSectors.map((group, idx) => {
                 const serial = (currentPage - 1) * itemsPerPage + idx + 1;
 
-                const toIntOrNull = (v) => {
-                  if (v === null || v === undefined) return null;
-                  const n = Number(String(v).trim());
-                  if (!Number.isFinite(n)) return null;
-                  const i = Math.trunc(n);
-                  return Number.isNaN(i) ? null : i;
+                const toInt = (v) => (Number.isFinite(+v) ? +v : 0);
+
+                const totalSeats = group.items.reduce(
+                  (sum, it) => sum + toInt(it.pax),
+                  0
+                );
+                const seatsSold = group.items.reduce(
+                  (sum, it) => sum + toInt(it.sold),
+                  0
+                );
+                const seatsLeft = Math.max(0, totalSeats - seatsSold);
+
+                const sectorStockIds = group.items.map((it) => String(it.id));
+
+                const salesForSector = Array.isArray(sales)
+                  ? sales.filter((s) =>
+                      sectorStockIds.includes(String(s.stock_id))
+                    )
+                  : [];
+
+                const salesPerPage = 7;
+                const salesPage = salesPageState[group.sector] || 1;
+                const start = (salesPage - 1) * salesPerPage;
+                const paginatedSales = salesForSector.slice(
+                  start,
+                  start + salesPerPage
+                );
+                const totalPages = Math.ceil(
+                  salesForSector.length / salesPerPage
+                );
+
+                const goToPage = (p) => {
+                  setSalesPageState((prev) => ({
+                    ...prev,
+                    [group.sector]: p,
+                  }));
                 };
 
-                const hasTopPaxKey = Object.prototype.hasOwnProperty.call(
-                  item,
-                  "pax"
-                );
-                const hasTopSoldKey = Object.prototype.hasOwnProperty.call(
-                  item,
-                  "sold"
-                );
-
-                const topPax = hasTopPaxKey ? toIntOrNull(item.pax) : null;
-                const topSold = hasTopSoldKey ? toIntOrNull(item.sold) : null;
-
-                let totalSeats = 0;
-                let seatsSold = 0;
-
-                if (topPax !== null) {
-                  totalSeats = topPax;
-                } else if (Array.isArray(item.items) && item.items.length > 0) {
-                  totalSeats = item.items.reduce(
-                    (sum, it) => sum + (toIntOrNull(it.pax) ?? 0),
-                    0
-                  );
-                } else {
-                  totalSeats = 0;
-                }
-
-                if (topSold !== null) {
-                  seatsSold = topSold;
-                } else if (Array.isArray(item.items) && item.items.length > 0) {
-                  seatsSold = item.items.reduce(
-                    (sum, it) => sum + (toIntOrNull(it.sold) ?? 0),
-                    0
-                  );
-                } else {
-                  seatsSold = 0;
-                }
-
-                const rawSeatsLeft = totalSeats - seatsSold;
-                const seatsLeft = Math.max(0, rawSeatsLeft);
-
                 return (
-                  <div key={item.id ?? serial} className="size-text mb-3">
+                  <div key={group.sector + serial} className="size-text mb-3">
                     <div
                       className="flight-header size-text"
                       onClick={() => toggleDropdown(serial)}
                       style={{ cursor: "pointer" }}
                     >
                       <span>
-                        {item.sector} |
+                        {group.sector} | {group.items[0]?.flightno ?? "-"} |
                         <span className="text-success fw-bold ms-2">
-                          <strong className="text-success">{seatsLeft}</strong>{" "}
-                          Seats Left
+                          <strong>{seatsLeft}</strong> Seats Left
                         </span>
                       </span>
-
-                      <div className="turq-caret ms-1" role="button">
+                      <div className="turq-caret ms-1">
                         {openIndex === serial ? "▴" : "▾"}
                       </div>
                     </div>
 
                     {openIndex === serial && (
-                      <div className="flight-body border border-light">
-                        <div className="d-flex justify-content-between mb-1">
-                          <span className="text-danger">
-                            <strong>PNR:</strong> {item.pnr}
-                          </span>
+                      <div className="flight-body border border-light p-2">
+                        {group.items.map((item) => {
+                          const itemTotalSeats = Number(item.pax) || 0;
 
-                          <span className="text-danger text-end">
-                            <strong>COST:</strong>{" "}
-                            {role === "admin"
-                              ? item.fare + "/-"
-                              : (role === "staff" || role === "agent") &&
-                                permissions.can_view_fares === 1
-                              ? item.fare + "/-"
-                              : "***"}
-                          </span>
-                        </div>
+                          const itemSales = Array.isArray(sales)
+                            ? sales.filter(
+                                (s) => String(s.stock_id) === String(item.id)
+                              )
+                            : [];
 
-                        <div className="d-flex justify-content-between mb-2">
-                          <div>
-                            <span className="fw-bold">Date:</span>{" "}
-                            {formatDot(item.dot)}
-                          </div>
+                          const itemSeatsSold = itemSales.reduce(
+                            (sum, s) => sum + (Number(s.sold) || 1),
+                            0
+                          );
+                          const itemSeatsLeft = Math.max(
+                            0,
+                            itemTotalSeats - itemSeatsSold
+                          );
 
-                          <div className="text-end">
-                            <span className="fw-bold">Airline:</span>{" "}
-                            {item.airline}
-                          </div>
-                        </div>
+                          return (
+                            <div
+                              key={item.id}
+                              className="border px-2 py-2 border-success rounded mb-1"
+                            >
+                              <div className="d-flex justify-content-between mb-1">
+                                <span className="text-danger">
+                                  <strong>PNR:</strong> {item.pnr}
+                                </span>
 
-                        <div className="d-flex flex-row justify-content-between gap-3 align-items-center mt-0 mb-2">
-                          <span className="text-success fw-bold">
-                            Total Seats: <strong>{totalSeats}</strong>
-                          </span>
+                                <span className="text-danger">
+                                  <strong>COST:</strong>{" "}
+                                  {role === "admin"
+                                    ? item.fare + "/-"
+                                    : (role === "staff" || role === "agent") &&
+                                      permissions.can_view_fares === 1
+                                    ? item.fare + "/-"
+                                    : "***"}
+                                </span>
 
-                          <span className="text-success fw-bold text-center">
-                            Seats Sold: <strong>{seatsSold}</strong>
-                          </span>
+                                <span className="text-danger">
+                                  <span className="fw-bold">SUPPLIER:</span> AL
+                                  HAMD
+                                </span>
+                              </div>
+                              <div className="mb-0 mt-0 border-bottom"></div>
 
-                          <span className="text-danger fw-bold pe-1 text-end">
-                            Seats Left:{" "}
-                            <strong className="text-danger">{seatsLeft}</strong>
-                          </span>
-                        </div>
+                              <div className="d-flex justify-content-between mt-2 mb-1">
+                                <span>
+                                  <strong>Date:</strong> {formatDot(item.dot)}
+                                </span>
+                                <span>
+                                  <strong>Airline:</strong> {item.airline}
+                                </span>
+                              </div>
+                              <div className="mt-0 border-bottom"></div>
 
-                        <div className="table-responsive">
+                              <div className="d-flex justify-content-between mt-2">
+                                <span className="text-success fw-bold">
+                                  Total Seats: {itemTotalSeats}
+                                </span>
+                                <span className="text-success fw-bold">
+                                  Seats Sold: {itemSeatsSold}
+                                </span>
+                                <span className="text-danger fw-bold">
+                                  Seats Left: {itemSeatsLeft}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        <div className="table-responsive mt-3">
                           <table className="table table-bordered table-sm text-center mb-0">
                             <thead className="table-light">
                               <tr>
-                                <th style={{ width: "15%" }}>SL. NO</th>
-                                <th style={{ width: "25%" }}>PAX NAME</th>
+                                <th style={{ width: "10%" }}>SL.NO</th>
+                                <th style={{ width: "30%" }}>PAX NAME</th>
                                 <th style={{ width: "30%" }}>DATE</th>
-                                <th style={{ width: "25%" }}>AGENT</th>
+                                <th style={{ width: "30%" }}>AGENT</th>
                               </tr>
                             </thead>
-
                             <tbody>
-                              {(() => {
-                                const salesForStock = Array.isArray(sales)
-                                  ? sales.filter(
-                                      (s) =>
-                                        String(s.stock_id) === String(item.id)
-                                    )
-                                  : [];
+                              {paginatedSales.length === 0 ? (
+                                <tr>
+                                  <td
+                                    colSpan="4"
+                                    className="text-danger fw-bold"
+                                  >
+                                    No sales available.
+                                  </td>
+                                </tr>
+                              ) : (
+                                paginatedSales.map((sale, i) => (
+                                  <tr key={`sale-${sale.id}-${i}`}>
+                                    <td>{start + i + 1}</td>
+                                    <td>{sale.pax ?? sale.name ?? "-"}</td>
+                                    <td style={{ whiteSpace: "nowrap" }}>
+                                      {formatDot(sale.dotb ?? sale.dot)}
+                                    </td>
+                                    <td>
+                                      {role === "admin" || role === "staff"
+                                        ? sale.agent || "-"
+                                        : role === "agent" &&
+                                          permissions.can_view_agents === 1
+                                        ? sale.agent || "-"
+                                        : "***"}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
 
-                                if (salesForStock.length === 0) {
-                                  return (
-                                    <tr>
-                                      <td
-                                        colSpan="4"
-                                        className="text-danger fw-bold"
-                                      >
-                                        No sales available.
-                                      </td>
-                                    </tr>
-                                  );
-                                }
-
-                                const salesPerPage = 7;
-
-                                const salesPage = salesPageState[item.id] || 1;
-
-                                const start = (salesPage - 1) * salesPerPage;
-                                const paginatedSales = salesForStock.slice(
-                                  start,
-                                  start + salesPerPage
-                                );
-
-                                const totalPages = Math.ceil(
-                                  salesForStock.length / salesPerPage
-                                );
-
-                                const goToPage = (p) => {
-                                  setSalesPageState((prev) => ({
-                                    ...prev,
-                                    [item.id]: p,
-                                  }));
-                                };
-
-                                return (
-                                  <>
-                                    {paginatedSales.map((sale, idx) => (
-                                      <tr key={`sale-${sale.id}-${idx}`}>
-                                        <td>{start + idx + 1}</td>
-                                        <td>{sale.pax ?? sale.name ?? "-"}</td>
-                                        <td style={{ whiteSpace: "nowrap" }}>
-                                          {formatDot(
-                                            sale.dotb ?? sale.dot ?? sale.dotb
-                                          )}
-                                        </td>
-                                        <td>
-                                          {role === "admin" || role === "staff"
-                                            ? sale.agent || "-"
-                                            : role === "agent" &&
-                                              permissions.can_view_agents === 1
-                                            ? sale.agent || "-"
-                                            : "***"}
-                                        </td>
-                                      </tr>
-                                    ))}
-
-                                    {salesForStock.length > salesPerPage && (
-                                      <tr>
-                                        <td
-                                          colSpan="4"
-                                          className="text-center p-2"
-                                        >
-                                          <button
-                                            className="btn btn-sm btn-success mx-1"
-                                            disabled={salesPage === 1}
-                                            onClick={() =>
-                                              goToPage(salesPage - 1)
-                                            }
-                                          >
-                                            Prev
-                                          </button>
-
-                                          <span className="small text-dark mx-2">
-                                            Page {salesPage} of {totalPages}
-                                          </span>
-
-                                          <button
-                                            className="btn btn-sm btn-success mx-1"
-                                            disabled={salesPage === totalPages}
-                                            onClick={() =>
-                                              goToPage(salesPage + 1)
-                                            }
-                                          >
-                                            Next
-                                          </button>
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </>
-                                );
-                              })()}
+                              {salesForSector.length > salesPerPage && (
+                                <tr>
+                                  <td colSpan="4" className="text-center p-2">
+                                    <button
+                                      className="btn btn-sm btn-success mx-1"
+                                      disabled={salesPage === 1}
+                                      onClick={() => goToPage(salesPage - 1)}
+                                    >
+                                      Prev
+                                    </button>
+                                    <span className="small text-dark mx-2">
+                                      Page {salesPage} of {totalPages}
+                                    </span>
+                                    <button
+                                      className="btn btn-sm btn-success mx-1"
+                                      disabled={salesPage === totalPages}
+                                      onClick={() => goToPage(salesPage + 1)}
+                                    >
+                                      Next
+                                    </button>
+                                  </td>
+                                </tr>
+                              )}
                             </tbody>
                           </table>
+                        </div>
+
+                        <div className="d-flex justify-content-center mt-2">
+                          <button
+                            className="btn btn-success px-1"
+                            onClick={() => {
+                              const sectorStockIds = group.items.map((it) =>
+                                String(it.id)
+                              );
+
+                              const sectorSales = sales.filter((s) =>
+                                sectorStockIds.includes(String(s.stock_id))
+                              );
+
+                              if (!sectorSales.length) {
+                                alert("No passenger data found");
+                                return;
+                              }
+
+                              const airlineName = group.items[0].airline;
+                              exportAirlineExcel(sectorSales, airlineName);
+                            }}
+                          >
+                            Download
+                          </button>
                         </div>
                       </div>
                     )}
@@ -995,15 +1043,15 @@ function Dashboard() {
               })
             ) : (
               <div className="size-text mb-3">
-                <div className="p-3 rounded bg-white text-center">
-                  <p className="mb-0 fw-bold text-danger border rounded text-start px-3 py-2">
-                    No records found for the selected search criteria.
+                <div className="p-3 rounded bg-white text-start">
+                  <p className="mb-0 fw-bold text-danger border rounded px-3 py-2">
+                    No records found for the selected search criteria
                   </p>
                 </div>
               </div>
             )}
 
-            {filteredStockList && filteredStockList.length > itemsPerPage && (
+            {totalPages > 1 && (
               <div className="d-flex justify-content-center gap-2 align-items-center mt-0">
                 <button
                   type="button"
@@ -1013,11 +1061,9 @@ function Dashboard() {
                 >
                   Prev
                 </button>
-
                 <span className="px-2 small text-muted">
                   Page {currentPage} of {totalPages}
                 </span>
-
                 <button
                   type="button"
                   className="btn btn-sm btn-success pagination-button"

@@ -832,19 +832,24 @@ aside.admin-sidebar {
 }
 
 .bulk-upload-box {
-  position: absolute;
-  top: 40px;
-  left: 0;
+  position: fixed;
+  top: 58px;
+  right: 40px;
   background: #fff;
-  border: 1px solid #ccc;
   padding: 15px;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  z-index: 100;
-  min-width: 250px;
-  max-width: 90vw;
-  box-sizing: border-box;
-  right: 0;
+  width: 280px;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  z-index: 99999;
+}
+
+.bulk-upload-box h5 {
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.bulk-upload-box input[type="file"] {
+  width: 100%;
 }
 
 @media (max-width: 576px) {
@@ -852,8 +857,17 @@ aside.admin-sidebar {
     left: 0;
     right: 0;
     top: 50px;
-    width: 100%;
-    margin: 0 auto;
+    width: 70%;
+    margin: 210px auto !important;
+  }
+}
+
+@media (min-width: 576px) and (max-width: 992px) {
+  .bulk-upload-box {
+    left: 0;
+    right: 0;
+    top: 0px !important;
+    margin: 150px auto !important;
   }
 }
 
@@ -975,7 +989,6 @@ aside.admin-sidebar {
   position: fixed;
   width: 220px;
   max-width: calc(100vw - 16px);
-  right: 0;
   background: #fff;
   border-radius: 6px;
   padding: 16px;
