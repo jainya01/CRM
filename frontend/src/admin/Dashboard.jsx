@@ -1012,30 +1012,32 @@ function Dashboard() {
                           </table>
                         </div>
 
-                        <div className="d-flex justify-content-center mt-2">
-                          <button
-                            className="btn btn-success px-1"
-                            onClick={() => {
-                              const sectorStockIds = group.items.map((it) =>
-                                String(it.id)
-                              );
+                        {salesForSector.length > 0 && (
+                          <div className="d-flex justify-content-center mt-2">
+                            <button
+                              className="btn btn-success px-1"
+                              onClick={() => {
+                                const sectorStockIds = group.items.map((it) =>
+                                  String(it.id)
+                                );
 
-                              const sectorSales = sales.filter((s) =>
-                                sectorStockIds.includes(String(s.stock_id))
-                              );
+                                const sectorSales = sales.filter((s) =>
+                                  sectorStockIds.includes(String(s.stock_id))
+                                );
 
-                              if (!sectorSales.length) {
-                                alert("No passenger data found");
-                                return;
-                              }
+                                if (!sectorSales.length) {
+                                  alert("No passenger data found");
+                                  return;
+                                }
 
-                              const airlineName = group.items[0].airline;
-                              exportAirlineExcel(sectorSales, airlineName);
-                            }}
-                          >
-                            Download
-                          </button>
-                        </div>
+                                const airlineName = group.items[0].airline;
+                                exportAirlineExcel(sectorSales, airlineName);
+                              }}
+                            >
+                              Download
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
