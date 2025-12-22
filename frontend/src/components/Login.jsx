@@ -22,7 +22,10 @@ const Login = () => {
             src={User}
             alt="User Logo"
             className="crm-logo"
+            width={200}
+            height={113}
             loading="eager"
+            fetchpriority="high"
           />
 
           <h3 className="crm-title">Welcome to Travel CRM</h3>

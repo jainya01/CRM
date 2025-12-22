@@ -524,7 +524,6 @@ aside.admin-sidebar {
 
 .ticket-result {
   padding: 6px 4px 6px 6px !important;
-  /* min-width: 220px; */
 }
 
 .sales-grid {
@@ -705,8 +704,9 @@ aside.admin-sidebar {
 
 .crm-logo {
   width: 200px;
-  height: 100px;
-  margin-bottom: 1rem;
+  height: auto;
+  margin: 0 auto 0rem;
+  display: block;
 }
 
 .crm-title {

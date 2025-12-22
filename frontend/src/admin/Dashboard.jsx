@@ -697,7 +697,6 @@ function Dashboard() {
                 type="search"
                 className="form-control pnr-wise"
                 placeholder="Search by PNR Number"
-                // style={{ width: "220px" }}
                 value={pnrQuery}
                 onChange={(e) => setPnrQuery(e.target.value)}
                 required

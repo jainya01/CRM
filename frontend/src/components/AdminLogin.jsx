@@ -64,10 +64,11 @@ function AdminLogin() {
               <img
                 src={User}
                 alt="Admin Logo"
-                className="mb-1 crm-logo"
-                loading="eager"
+                className="crm-logo"
                 width={200}
-                height={100}
+                height={113}
+                loading="eager"
+                fetchpriority="high"
               />
             </Link>
             <h4 className="text-secondary fw-semibold">Admin Login</h4>
