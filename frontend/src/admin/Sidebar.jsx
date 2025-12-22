@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
-import Travels from "../assets/Travel.png";
+import Travels from "../assets/Travel.webp";
 import axios from "axios";
 
 const NAV_LINKS = [

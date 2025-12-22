@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import User from "../assets/Travel.png";
+import User from "../assets/Travel.webp";
 import "../App.css";
 
 const Login = () => {

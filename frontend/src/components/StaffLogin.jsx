@@ -1,6 +1,6 @@
 import { useState } from "react";
 import "../App.css";
-import User from "../assets/Travel.png";
+import User from "../assets/Travel.webp";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
