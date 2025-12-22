@@ -11,7 +11,7 @@ const Login = () => {
   }, []);
 
   return (
-    <div className="crm-welcome-bg">
+    <main className="crm-welcome-bg">
       <div
         className={`crm-login-wrapper col-12 col-sm-12 col-md-6 col-lg-4 ${
           showCard ? "crm-fade-in" : "crm-hidden-card"
@@ -55,7 +55,7 @@ const Login = () => {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 

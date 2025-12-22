@@ -56,7 +56,7 @@ function AdminLogin() {
   };
 
   return (
-    <div className="admin-login-bg d-flex justify-content-center align-items-center">
+    <main className="admin-login-bg d-flex justify-content-center align-items-center">
       <div className="login-card-wrapper">
         <div className="card shadow-lg border-0 p-4">
           <div className="text-center mb-3">
@@ -120,7 +120,7 @@ function AdminLogin() {
           </form>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 
