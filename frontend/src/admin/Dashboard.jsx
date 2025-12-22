@@ -903,7 +903,7 @@ function Dashboard() {
                                   <strong>PNR:</strong> {item.pnr}
                                 </span>
 
-                                <span className="text-danger">
+                                <span className="text-danger text-center">
                                   <strong>COST:</strong>{" "}
                                   {role === "admin"
                                     ? item.fare + "/-"
@@ -921,24 +921,24 @@ function Dashboard() {
                               <div className="mb-0 mt-0 border-bottom"></div>
 
                               <div className="d-flex justify-content-between mt-2 mb-1">
-                                <span>
+                                <span className="text-start">
                                   <strong>Date:</strong> {formatDot(item.dot)}
                                 </span>
-                                <span>
+                                <span className="text-end">
                                   <strong>Airline:</strong> {item.airline}
                                 </span>
                               </div>
                               <div className="mt-0 border-bottom"></div>
 
                               <div className="d-flex justify-content-between mt-2">
-                                <span className="text-success fw-bold">
+                                <span className="text-success fw-bold text-start">
                                   Total Seats: {itemTotalSeats}
                                 </span>
-                                <span className="text-success fw-bold">
-                                  Seats Sold: {itemSeatsSold}
+                                <span className="text-success fw-bold text-center">
+                                  Sold: {itemSeatsSold}
                                 </span>
-                                <span className="text-danger fw-bold">
-                                  Seats Left: {itemSeatsLeft}
+                                <span className="text-danger fw-bold text-end">
+                                  Left: {itemSeatsLeft}
                                 </span>
                               </div>
                             </div>

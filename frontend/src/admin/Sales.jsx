@@ -832,11 +832,11 @@ function Sales() {
                           <div key={item.id ?? idx} className="mb-1">
                             <div className="border border-success px-2 py-2 rounded-1">
                               <div className="d-flex flex-row justify-content-between">
-                                <span className="text-danger">
+                                <span className="text-danger text-start">
                                   <strong>PNR:</strong> {pnr} &nbsp;
                                 </span>
 
-                                <span className="text-danger text-end">
+                                <span className="text-danger text-center">
                                   <strong>COST:</strong> {fare}/- &nbsp;
                                 </span>
 
@@ -845,10 +845,11 @@ function Sales() {
                                   HAMD
                                 </span>
                               </div>
+
                               <hr className="mt-1 mb-1" />
 
                               <div className="d-flex flex-row justify-content-between">
-                                <span>
+                                <span className="text-start">
                                   <strong>Date:</strong> {dot} &nbsp;
                                 </span>
 

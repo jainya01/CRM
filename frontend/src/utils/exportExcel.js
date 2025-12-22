@@ -21,7 +21,6 @@ export const exportAirlineExcel = async (data, airlineName) => {
       name.toUpperCase().replace(/\s+/g, " ").trim();
 
     const input = normalizeAirline(airlineName);
-
     let templateKey = null;
 
     if (input === "SAUDIA AIRLINES") {
@@ -311,7 +310,6 @@ export const exportAirlineExcel = async (data, airlineName) => {
           const lastName =
             parts.length > 1 ? parts.slice(1).join(" ") : firstName;
 
-          /* ---------- TITLE & GENDER ---------- */
           const isFemale = item.gender?.toLowerCase() === "female";
           const title = isFemale ? "Mrs" : "Mr";
           const gender = isFemale ? "Female" : "Male";

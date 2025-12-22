@@ -171,6 +171,28 @@ function StockManagement() {
   const salesToUse = selectedFilter ? filteredSales : sales;
 
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(event.target) &&
+        monthPillRef.current &&
+        !monthPillRef.current.contains(event.target)
+      ) {
+        setMonth(false);
+        setPopoverStyle(null);
+      }
+    };
+
+    if (month) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [month]);
+
+  useEffect(() => {
     const updateMonth = () => {
       const now = new Date();
       const monthNames = [
@@ -968,10 +990,10 @@ function StockManagement() {
                           className="border border-success rounded mb-2 p-2"
                         >
                           <div className="d-flex justify-content-between flex-wrap">
-                            <span className="text-danger fw-bold">
+                            <span className="text-danger fw-bold text-start">
                               PNR: {item.pnr ?? "-"}
                             </span>
-                            <span className="text-danger fw-bold">
+                            <span className="text-danger fw-bold text-center">
                               COST: {item.fare ? `${item.fare}/-` : "-"}
                             </span>
 
@@ -982,23 +1004,23 @@ function StockManagement() {
                           <div className="border-bottom mt-2 mb-1"></div>
 
                           <div className="d-flex justify-content-between mt-1">
-                            <span>
+                            <span className="text-start">
                               <strong>Date:</strong> {formatDot(item.dot)}
                             </span>
-                            <span>
+                            <span className="text-end">
                               <strong>Airline:</strong> {item.airline}
                             </span>
                           </div>
                           <div className="border-bottom mt-2 mb-1"></div>
 
                           <div className="d-flex justify-content-between mt-1">
-                            <span className="text-success fw-bold">
+                            <span className="text-success fw-bold text-start">
                               Total Seats: {item.pax ?? 0}
                             </span>
-                            <span className="text-success fw-bold">
+                            <span className="text-success fw-bold text-center">
                               Sold: {item.sold ?? 0}
                             </span>
-                            <span className="text-danger fw-bold">
+                            <span className="text-danger fw-bold text-end">
                               Left: {left}
                             </span>
                           </div>
