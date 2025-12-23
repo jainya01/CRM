@@ -51,7 +51,7 @@ function Agent() {
         return formattedData;
       } catch (error) {
         if (axios.isCancel?.(error)) {
-          console.log("FetchAgents cancelled");
+          console.log("Fetch Agents cancelled");
         } else {
           console.error("❌ Error fetching agents:", error);
         }

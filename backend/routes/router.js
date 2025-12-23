@@ -1066,7 +1066,7 @@ router.get("/allotbs", async (req, res) => {
       data: results,
     });
   } catch (error) {
-    console.error("❌ Server error:", error);
+    console.error("Server error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 });

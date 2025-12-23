@@ -27,7 +27,6 @@ const Login = () => {
             loading="eager"
             fetchpriority="high"
           />
-
           <h3 className="crm-title">Welcome to Travel CRM</h3>
           <p className="crm-subtitle">Choose your login to continue</p>
 
