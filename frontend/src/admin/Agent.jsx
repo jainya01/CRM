@@ -33,9 +33,7 @@ function Agent() {
       if (editingIndex !== null && !force) return;
 
       try {
-        const response = await axios.get(`${API_URL}/allagents`, {
-          signal,
-        });
+        const response = await axios.get(`${API_URL}/allagents`, { signal });
 
         const agentsRaw = Array.isArray(response.data)
           ? response.data
@@ -66,16 +64,8 @@ function Agent() {
 
     fetchStaff({ force: true, signal: controller.signal }).catch(() => {});
 
-    let interval = null;
-    if (editingIndex === null) {
-      interval = setInterval(() => {
-        fetchStaff({ signal: controller.signal }).catch(() => {});
-      }, 1000);
-    }
-
     return () => {
       controller.abort();
-      if (interval) clearInterval(interval);
     };
   }, [fetchStaff]);
 
@@ -98,24 +88,10 @@ function Agent() {
         toast.success(response.data.message || "Agent added successfully!");
         setAgent({ agent_name: "", agent_email: "", agent_password: "" });
 
-        try {
-          const resp2 = await axios.get(`${API_URL}/allagents`);
-          const agentsRaw = Array.isArray(resp2.data)
-            ? resp2.data
-            : resp2.data?.data || [];
-
-          const formattedData = agentsRaw.map((a) => ({
-            name: a.agent_name ?? "",
-            email: a.agent_email ?? "",
-            raw: a,
-          }));
-
-          setStaffList(formattedData);
-        } catch (reErr) {
-          console.error("Error re-fetching agents after add:", reErr);
-        }
+        fetchStaff({ force: true }).catch((err) =>
+          console.error("Error fetching agents after add:", err)
+        );
       } else {
-        console.warn("Server returned success: false:", response.data);
         toast.error(response.data?.message || "Something went wrong");
       }
     } catch (err) {
@@ -125,7 +101,6 @@ function Agent() {
           err.response.data?.error ||
           JSON.stringify(err.response.data) ||
           "Bad Request";
-
         toast.error(`Server: ${serverMsg}`);
       } else if (err.request) {
         toast.error("No response from server.");

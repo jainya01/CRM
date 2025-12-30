@@ -64,17 +64,8 @@ function Staff() {
 
     fetchStaff({ force: true, signal: controller.signal }).catch(() => {});
 
-    let interval = null;
-
-    if (editingIndex === null) {
-      interval = setInterval(() => {
-        fetchStaff({ signal: controller.signal }).catch(() => {});
-      }, 1000);
-    }
-
     return () => {
       controller.abort();
-      if (interval) clearInterval(interval);
     };
   }, [fetchStaff]);
 
@@ -85,20 +76,22 @@ function Staff() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
       const response = await axios.post(`${API_URL}/staffpost`, agent, {
         headers: { "Content-Type": "application/json" },
       });
 
-      if (response.data && response.data.success) {
+      if (response.data?.success) {
         toast.success(response.data.message || "Staff added successfully!");
+
         setAgent({
           staff_agent: "",
           staff_email: "",
           staff_password: "",
         });
 
-        await fetchStaff({ force: true });
+        fetchStaff({ force: true });
       } else {
         toast.error(response.data?.message || "Something went wrong");
       }

@@ -83,7 +83,7 @@ function SuggestionsPortal({
 }
 
 function Otb() {
-  const API_URL = import.meta.env.VITE_API_URL; 
+  const API_URL = import.meta.env.VITE_API_URL;
 
   const [staffList, setStaffList] = useState([]);
   const [openIndex, setOpenIndex] = useState(null);
@@ -92,32 +92,17 @@ function Otb() {
     setOpenIndex((prev) => (prev === index ? null : index));
   }, []);
 
+  const fetchOtbData = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/allotbs`);
+      setStaffList(response.data?.data || response.data || []);
+    } catch (error) {
+      console.error("Error fetching allotbs:", error);
+    }
+  };
+
   useEffect(() => {
-    const controller = new AbortController();
-
-    const allOtbData = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/allotbs`, {
-          signal: controller.signal,
-        });
-        setStaffList(response.data?.data || response.data || []);
-      } catch (error) {
-        if (axios.isCancel(error)) {
-          console.log("AllOtbData request cancelled");
-        } else {
-          console.error("Error fetching allotbs:", error);
-        }
-      }
-    };
-
-    allOtbData();
-
-    const interval = setInterval(allOtbData, 500);
-
-    return () => {
-      controller.abort();
-      clearInterval(interval);
-    };
+    fetchOtbData();
   }, [API_URL]);
 
   const [agent, setAgent] = useState({ agent_name: "", mail: "" });
@@ -234,6 +219,7 @@ function Otb() {
     e.preventDefault();
 
     const { agent_name, mail } = agent;
+
     if (!agent_name || !mail) {
       toast.error("Both Agent name and mail are required.");
       return;
@@ -241,18 +227,18 @@ function Otb() {
 
     try {
       setLoading(true);
+
       const payload = { agent_name, mail };
       const res = await axios.post(`${API_URL}/otbpost`, payload, {
         headers: { "Content-Type": "application/json" },
       });
 
       if (res?.data?.success) {
-        toast.success(res.data.message || "OTB send successfully!");
+        toast.success(res.data.message || "OTB sent successfully!");
+
         setAgent({ agent_name: "", mail: "" });
-        try {
-          const fresh = await axios.get(`${API_URL}/allotbs`);
-          setStaffList(fresh.data?.data || fresh.data || []);
-        } catch (err) {}
+
+        fetchOtbData();
       } else {
         toast.error(res?.data?.message || "Failed to save data.");
       }

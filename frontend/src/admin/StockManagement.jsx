@@ -139,6 +139,7 @@ function StockManagement() {
 
       if (response.data.success) {
         toast.success(response.data.message || "Stock added successfully!");
+
         setStock({
           sector: "",
           pax: "",
@@ -148,6 +149,8 @@ function StockManagement() {
           flightno: "",
           pnr: "",
         });
+
+        fetchData();
       } else {
         toast.error(response.data.message || "Something went wrong");
       }
@@ -193,28 +196,37 @@ function StockManagement() {
   }, [month]);
 
   useEffect(() => {
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
     const updateMonth = () => {
       const now = new Date();
-      const monthNames = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
       setMonths(monthNames[now.getMonth()]);
     };
 
     updateMonth();
-    const interval = setInterval(updateMonth, 24 * 60 * 60 * 1000);
-    return () => clearInterval(interval);
+
+    const now = new Date();
+    const msUntilMidnight =
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now;
+
+    const timeout = setTimeout(() => {
+      updateMonth();
+    }, msUntilMidnight);
+
+    return () => clearTimeout(timeout);
   }, []);
 
   function applyPresetFilter(filterName) {
@@ -345,33 +357,22 @@ function StockManagement() {
     setOpenIndex(openIndex === index ? null : index);
   };
 
+  const fetchData = async () => {
+    try {
+      const [stocksResponse, salesResponse] = await Promise.all([
+        axios.get(`${API_URL}/allstocks`),
+        axios.get(`${API_URL}/allsales`),
+      ]);
+
+      setStaff(stocksResponse.data?.data || []);
+      setSales(salesResponse.data?.data || []);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
-    const controller = new AbortController();
-
-    const fetchData = async () => {
-      try {
-        const [stocksResponse, salesResponse] = await Promise.all([
-          axios.get(`${API_URL}/allstocks`, { signal: controller.signal }),
-          axios.get(`${API_URL}/allsales`, { signal: controller.signal }),
-        ]);
-
-        setStaff(stocksResponse.data?.data || []);
-        setSales(salesResponse.data?.data || []);
-      } catch (e) {
-        if (!axios.isCancel(e)) {
-          console.error(e);
-        }
-      }
-    };
-
     fetchData();
-
-    const intervalId = setInterval(fetchData, 1000);
-
-    return () => {
-      clearInterval(intervalId);
-      controller.abort();
-    };
   }, [API_URL]);
 
   function parseToDateObj(value) {
@@ -566,7 +567,7 @@ function StockManagement() {
     e.preventDefault();
 
     if (!file) {
-      toast.error("Please select a excel file first!");
+      toast.error("Please select an excel file first!");
       return;
     }
 
@@ -574,19 +575,19 @@ function StockManagement() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await axios.post(`${API_URL}/upload-stock`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const res = await axios.post(`${API_URL}/upload-stock`, formData);
 
       if (res.status === 200) {
         toast.success(res.data.message || "File uploaded successfully!");
+
         setShowModal(false);
         setFile(null);
+
+        fetchData();
       }
     } catch (error) {
       console.error(error);
+
       toast.error(
         error.response?.data?.error || "Something went wrong while uploading!"
       );
@@ -714,7 +715,7 @@ function StockManagement() {
 
             {showModal && (
               <div className="bulk-upload-box" ref={modalRef}>
-                <h5>Upload Excel File</h5>
+                <h5 className="fw-bold">Upload Excel File</h5>
                 <input
                   type="file"
                   accept=".xlsx, .xls"

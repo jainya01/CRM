@@ -286,31 +286,18 @@ function Sales() {
     setShowAgentSuggestions(false);
   };
 
+  const fetchSales = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/allsales`);
+      const payload = response.data?.data ?? response.data;
+      setStaff(Array.isArray(payload) ? payload : []);
+    } catch (err) {
+      console.error("Error fetching allsales:", err);
+    }
+  };
+
   useEffect(() => {
-    const controller = new AbortController();
-
-    const allSales = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/allsales`, {
-          signal: controller.signal,
-        });
-        const payload = response.data?.data ?? response.data;
-        setStaff(Array.isArray(payload) ? payload : []);
-      } catch (err) {
-        if (axios.isCancel(err)) {
-          console.log("AllSales request cancelled");
-        } else {
-          console.error("Error fetching allsales:", err);
-        }
-      }
-    };
-
-    allSales();
-    const interval = setInterval(allSales, 1000);
-    return () => {
-      controller.abort();
-      clearInterval(interval);
-    };
+    fetchSales();
   }, [API_URL]);
 
   const toggleDropdown = (key) => {
@@ -340,6 +327,7 @@ function Sales() {
       agent: stock.agent,
       flightno: stock.flightno,
     };
+
     if (stock.stock_id) payload.stock_id = stock.stock_id;
 
     try {
@@ -347,8 +335,9 @@ function Sales() {
         headers: { "Content-Type": "application/json" },
       });
 
-      if (response.data && response.data.success) {
+      if (response.data?.success) {
         toast.success("Sales added successfully!");
+
         setStock({
           stock_id: "",
           sector: "",
@@ -359,15 +348,16 @@ function Sales() {
           agent: "",
           flightno: "",
         });
+
         setSelectedStockId("");
+
+        fetchSales();
       } else {
         toast.error(response.data?.message || "Something went wrong");
       }
     } catch (err) {
       toast.error("Server connection failed.");
     }
-
-    await fetchStocks();
   };
 
   const handleChange = (e) => {
