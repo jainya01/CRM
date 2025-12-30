@@ -4,17 +4,17 @@ import "react-toastify/dist/ReactToastify.css";
 import Login from "./components/Login";
 import AdminLogin from "./components/AdminLogin";
 import AgentLogin from "./components/AgentLogin";
+import StaffLogin from "./components/StaffLogin";
 import ProtectedRoute from "./components/ProtectedRoute";
 import User from "./User";
 import Dashboard from "./admin/Dashboard";
 import StockManagement from "./admin/StockManagement";
+import Sales from "./admin/Sales";
 import Otb from "./admin/Otb";
 import Urase from "./admin/Urase";
-import Settings from "./admin/Settings";
 import Agent from "./admin/Agent";
 import Staff from "./admin/Staff";
-import Sales from "./admin/Sales";
-import StaffLogin from "./components/StaffLogin";
+import Settings from "./admin/Settings";
 
 function App() {
   return (
@@ -30,12 +30,12 @@ function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="stockmanagement" element={<StockManagement />} />
+            <Route path="sales" element={<Sales />} />
             <Route path="OTB" element={<Otb />} />
             <Route path="urase" element={<Urase />} />
-            <Route path="settings" element={<Settings />} />
             <Route path="agent" element={<Agent />} />
             <Route path="staff" element={<Staff />} />
-            <Route path="sales" element={<Sales />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Route>
 
