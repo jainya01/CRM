@@ -222,20 +222,24 @@ function Dashboard() {
     const fareByYear = {};
 
     sales.forEach((item) => {
+      if (!item.created_at) return;
+
       const year = new Date(item.created_at).getFullYear();
       const fare = parseFloat(item.fare) || 0;
-      if (fareByYear[year]) {
-        fareByYear[year] += fare;
-      } else {
-        fareByYear[year] = fare;
-      }
+
+      fareByYear[year] = (fareByYear[year] || 0) + fare;
     });
 
-    const years = Array.from({ length: 2025 - 2015 + 1 }, (_, i) => 2015 + i);
-    const chartArray = years.map((year) => ({
-      year,
-      sell: fareByYear[year] || 0,
-    }));
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 9;
+
+    const chartArray = Array.from({ length: 10 }, (_, i) => {
+      const year = startYear + i;
+      return {
+        year,
+        sell: fareByYear[year] || 0,
+      };
+    });
 
     setChartData(chartArray);
   }, [sales]);
