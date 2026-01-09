@@ -743,7 +743,6 @@ router.delete("/deletesalesdata/:sector", async (req, res) => {
   }
 
   let connection;
-
   try {
     connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -763,14 +762,10 @@ router.delete("/deletesalesdata/:sector", async (req, res) => {
 
     await connection.query("DELETE FROM sales WHERE sector = ?", [sector]);
 
-    const [updateResult] = await connection.query(
-      "UPDATE stock SET sold = sold - ? WHERE sector = ?",
+    await connection.query(
+      "UPDATE stock SET sold = GREATEST(sold - ?, 0) WHERE sector = ?",
       [saleCount, sector]
     );
-
-    if (updateResult.affectedRows === 0) {
-      throw new Error("Stock sector not found");
-    }
 
     await connection.commit();
 
@@ -781,13 +776,8 @@ router.delete("/deletesalesdata/:sector", async (req, res) => {
     });
   } catch (err) {
     if (connection) await connection.rollback();
-
     console.error("Delete sales error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: err.message,
-    });
+    res.status(500).json({ success: false, message: "Server error" });
   } finally {
     if (connection) connection.release();
   }
@@ -797,20 +787,16 @@ router.delete("/deletesalesid/:id", async (req, res) => {
   const { id } = req.params;
 
   if (!id || isNaN(id)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid ID",
-    });
+    return res.status(400).json({ success: false, message: "Invalid ID" });
   }
 
   let connection;
-
   try {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
     const [[sale]] = await connection.query(
-      "SELECT sector, stock_id FROM sales WHERE id = ?",
+      "SELECT stock_id FROM sales WHERE id = ?",
       [id]
     );
 
@@ -824,16 +810,12 @@ router.delete("/deletesalesid/:id", async (req, res) => {
 
     await connection.query("DELETE FROM sales WHERE id = ?", [id]);
 
-    const [updateResult] = await connection.query(
+    await connection.query(
       `UPDATE stock 
        SET sold = GREATEST(sold - 1, 0) 
-       WHERE id = ? AND sector = ?`,
-      [sale.stock_id, sale.sector]
+       WHERE id = ?`,
+      [sale.stock_id]
     );
-
-    if (updateResult.affectedRows === 0) {
-      throw new Error("Stock not found for this sale");
-    }
 
     await connection.commit();
 
@@ -843,13 +825,8 @@ router.delete("/deletesalesid/:id", async (req, res) => {
     });
   } catch (err) {
     if (connection) await connection.rollback();
-
     console.error("Delete sale by ID error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: err.message,
-    });
+    res.status(500).json({ success: false, message: "Server error" });
   } finally {
     if (connection) connection.release();
   }
