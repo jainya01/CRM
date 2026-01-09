@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import ExcelJS from "exceljs";
+import { toast, ToastContainer } from "react-toastify";
 
 function SalesDone() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -41,6 +42,11 @@ function SalesDone() {
 
   const handleSearch = (e) => {
     e.preventDefault();
+
+    if (!search.pnr && !search.dot) {
+      toast.error("Please fill either PNR or Date");
+      return;
+    }
 
     let filtered = user;
 
@@ -155,10 +161,10 @@ function SalesDone() {
               <thead className="table-light">
                 <tr>
                   <th>ID</th>
-                  <th>Sector</th>
+                  <th>SECTOR</th>
                   <th>PAX</th>
-                  <th>Date</th>
                   <th>AIRLINE</th>
+                  <th>FARE</th>
                   <th>PNR</th>
                 </tr>
               </thead>
@@ -170,8 +176,8 @@ function SalesDone() {
                       <td>{startIndex + index + 1}</td>
                       <td>{data.sector || "-"}</td>
                       <td>{data.pax || "-"}</td>
-                      <td>{data.dot || "-"}</td>
                       <td>{data.airline || "-"}</td>
+                      <td>{data.fare || "-"}</td>
                       <td>{data.pnr || "-"}</td>
                     </tr>
                   ))
@@ -224,6 +230,8 @@ function SalesDone() {
           </div>
         </div>
       </div>
+
+      <ToastContainer position="bottom-right" autoClose={1500} />
     </div>
   );
 }
