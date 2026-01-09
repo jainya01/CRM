@@ -1,7 +1,10 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { toast, ToastContainer } from "react-toastify";
+import { useParams } from "react-router-dom";
 import axios from "axios";
 import "../App.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faXmark, faEdit } from "@fortawesome/free-solid-svg-icons";
 
 function startOfWeek(d) {
   const x = new Date(d);
@@ -160,6 +163,7 @@ function StockManagement() {
     }
   };
 
+  const { id } = useParams();
   const [months, setMonths] = useState("");
   const monthPillRef = useRef(null);
   const popoverRef = useRef(null);
@@ -241,28 +245,55 @@ function StockManagement() {
       return;
     }
 
-    if (selectedFilter !== "custom") {
-      const range = getRangeForFilter(selectedFilter, new Date());
+    if (selectedFilter === "custom") {
+      if (!customFrom || !customTo) return;
+
+      const range = getRangeForFilter(
+        "custom",
+        new Date(),
+        customFrom,
+        customTo
+      );
       if (!range) return;
 
       const { start, end } = range;
 
-      const filterStocksByDot = (list) =>
-        list.filter((item) => {
+      setFilteredStocks(
+        staff.filter((item) => {
           const d = parseToDateObj(item.dot);
           return d && d >= start && d <= end;
-        });
+        })
+      );
 
-      const filterSalesByDate = (list) =>
-        list.filter((item) => {
+      setFilteredSales(
+        sales.filter((item) => {
           const d = parseToDateObj(item.dotb || item.created_at);
           return d && d >= start && d <= end;
-        });
+        })
+      );
 
-      setFilteredStocks(filterStocksByDot(staff));
-      setFilteredSales(filterSalesByDate(sales));
+      return;
     }
-  }, [selectedFilter, staff, sales]);
+
+    const range = getRangeForFilter(selectedFilter, new Date());
+    if (!range) return;
+
+    const { start, end } = range;
+
+    setFilteredStocks(
+      staff.filter((item) => {
+        const d = parseToDateObj(item.dot);
+        return d && d >= start && d <= end;
+      })
+    );
+
+    setFilteredSales(
+      sales.filter((item) => {
+        const d = parseToDateObj(item.dotb || item.created_at);
+        return d && d >= start && d <= end;
+      })
+    );
+  }, [selectedFilter, staff, sales, customFrom, customTo]);
 
   const updatePopoverPosition = () => {
     const pill = monthPillRef.current;
@@ -373,7 +404,7 @@ function StockManagement() {
 
   useEffect(() => {
     fetchData();
-  }, [API_URL]);
+  }, []);
 
   function parseToDateObj(value) {
     if (value == null || value === "") return null;
@@ -613,6 +644,145 @@ function StockManagement() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showModal]);
+
+  const deleteStock = async (id) => {
+    if (!id) return;
+
+    try {
+      await axios.delete(`${API_URL}/deletestockdata/${id}`);
+      await fetchData();
+      setOpenIndex(null);
+      toast.success("Stock deleted");
+    } catch (err) {
+      console.error(err);
+      toast.error("Delete failed");
+    }
+  };
+
+  const deletedata1 = async (id) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this sale?"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const res = await axios.delete(`${API_URL}/deletesalesid/${id}`, {
+        data: { staff },
+      });
+
+      toast.success(res.data.message || "Sale deleted successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Delete failed");
+    }
+  };
+
+  const formatToInputDate = (value) => {
+    if (!value) return "";
+    const [dd, mm, yyyy] = value.split("-");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const [showModal1, setShowModal1] = useState(false);
+  const [editData, setEditData] = useState({
+    id: "",
+    sector: "",
+    pax: "",
+    dot: "",
+    fare: "",
+    airline: "",
+    flightno: "",
+    pnr: "",
+  });
+
+  useEffect(() => {
+    if (!id) return;
+    somestocks();
+  }, [id]);
+
+  const somestocks = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/somestocksdata/${id}`);
+
+      const data = response.data?.data;
+
+      if (!data) return;
+
+      setEditData({
+        id: data.id || "",
+        sector: data.sector || "",
+        pax: data.pax || "",
+        dot: formatToInputDate(data.dot),
+        fare: data.fare || "",
+        airline: data.airline || "",
+        flightno: data.flightno || "",
+        pnr: data.pnr || "",
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!editData.id) {
+      toast.warn("No record selected to update.");
+      return;
+    }
+
+    try {
+      const response = await axios.put(
+        `${API_URL}/updatestocks/${editData.id}`,
+        {
+          sector: editData.sector,
+          pax: editData.pax,
+          dot: editData.dot,
+          fare: editData.fare,
+          airline: editData.airline,
+          flightno: editData.flightno,
+          pnr: editData.pnr,
+        }
+      );
+
+      setShowModal1(false);
+
+      if (typeof fetchData === "function") {
+        fetchData();
+      }
+
+      toast.success(response.data?.message || "Stock updated successfully!");
+    } catch (err) {
+      console.error("Update error:", err);
+
+      if (err.response?.data?.message) {
+        toast.error(`Update failed: ${err.response.data.message}`);
+      } else if (err.message) {
+        toast.error(`Update failed: ${err.message}`);
+      } else {
+        toast.error("Update failed. Please try again.");
+      }
+    }
+  };
+
+  const modalRef1 = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (modalRef1.current && !modalRef1.current.contains(event.target)) {
+        setShowModal1(false);
+      }
+    }
+
+    if (showModal1) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showModal1, setShowModal1]);
 
   return (
     <div className="content-wrapper">
@@ -938,7 +1108,7 @@ function StockManagement() {
 
           return (
             <div
-              key={group.key ?? index}
+              key={group.key}
               className="col-12 col-sm-6 col-md-6 col-lg-4 mb-3"
             >
               <div className="card border-0 shadow-sm">
@@ -951,7 +1121,7 @@ function StockManagement() {
                     className="item-color1"
                     style={{ wordBreak: "break-word" }}
                   >
-                    {group.sector} | {group.flightno} |{" "}
+                    {group.sector} | {group.flightno || "none"} |{" "}
                     <span
                       className={
                         isExpired
@@ -970,7 +1140,50 @@ function StockManagement() {
                       </span>
                     )}
                   </div>
+                  |
+                  <div className="d-flex ms-0 ps-0 d-flex gap-1 align-items-center justify-content-center">
+                    <div className="d-flex align-items-center">
+                      <FontAwesomeIcon
+                        icon={faXmark}
+                        style={{ color: "#ff0000", cursor: "pointer" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (
+                            !window.confirm(
+                              "Are you sure you want to delete this stock?"
+                            )
+                          )
+                            return;
+                          deleteStock(group.items[0].id);
+                          toast.success("Stock deleted successfully");
+                          setOpenIndex(null);
+                        }}
+                      />
+                    </div>
+                    <div className="d-flex align-items-center">
+                      <FontAwesomeIcon
+                        icon={faEdit}
+                        className="ms-1 me-1 text-primary fw-bold"
+                        style={{ cursor: "pointer" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const item = group.items[0];
+                          setEditData({
+                            id: item.id,
+                            sector: item.sector || "",
+                            pax: item.pax || "",
+                            dot: item.dot ? formatToInputDate(item.dot) : "",
+                            fare: item.fare || "",
+                            airline: item.airline || "",
+                            pnr: item.pnr || "",
+                            flightno: item.flightno || "",
+                          });
 
+                          setShowModal1(true);
+                        }}
+                      />
+                    </div>
+                  </div>
                   <div className="turq-caret">
                     {openIndex === index ? "▴" : "▾"}
                   </div>
@@ -987,7 +1200,7 @@ function StockManagement() {
 
                       return (
                         <div
-                          key={idx}
+                          key={item.id}
                           className="border border-success rounded mb-2 p-2"
                         >
                           <div className="d-flex justify-content-between flex-wrap">
@@ -1002,6 +1215,7 @@ function StockManagement() {
                               <span className="fw-bold">SUPPLIER:</span> AL HAMD
                             </span>
                           </div>
+
                           <div className="border-bottom mt-2 mb-1"></div>
 
                           <div className="d-flex justify-content-between mt-1">
@@ -1037,6 +1251,7 @@ function StockManagement() {
                             <th style={{ width: "30%" }}>PAX NAME</th>
                             <th style={{ width: "30%" }}>DATE</th>
                             <th style={{ width: "25%" }}>AGENT</th>
+                            <th style={{ width: "25%" }}>ACTION</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1049,7 +1264,7 @@ function StockManagement() {
                             if (matchingSales.length === 0) {
                               return (
                                 <tr>
-                                  <td colSpan="4" className="text-danger">
+                                  <td colSpan="5" className="text-danger">
                                     No sales available.
                                   </td>
                                 </tr>
@@ -1085,6 +1300,17 @@ function StockManagement() {
                                       {formatDot(sale.dotb ?? sale.dot)}
                                     </td>
                                     <td>{sale.agent ?? "-"}</td>
+                                    <td>
+                                      <FontAwesomeIcon
+                                        icon={faXmark}
+                                        className="ms-2 text-danger fw-bold"
+                                        style={{ cursor: "pointer" }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deletedata1(sale.id);
+                                        }}
+                                      />
+                                    </td>
                                   </tr>
                                 ))}
 
@@ -1135,6 +1361,156 @@ function StockManagement() {
           );
         })}
 
+        {showModal1 && (
+          <div className="modal fade show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered" ref={modalRef1}>
+              <div className="modal-content custom-color">
+                <div className="modal-header">
+                  <h5 className="modal-title text-light">Edit Stock</h5>
+
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() => setShowModal1(false)}
+                  ></button>
+                </div>
+
+                <div className="modal-body">
+                  <div className="mb-2">
+                    <label className="form-label text-light">Sector Name</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Sector Name"
+                      name="sector"
+                      value={editData.sector}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          sector: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="form-label text-light">PAXQ</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      placeholder="PAXQ"
+                      name="pax"
+                      value={editData.pax}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          pax: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="form-label text-light">DOT</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      name="dot"
+                      value={editData.dot}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          dot: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="form-label text-light">Fare</label>
+                    <input
+                      type="text"
+                      placeholder="Fare"
+                      className="form-control"
+                      name="fare"
+                      value={editData.fare}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          fare: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="form-label text-light">Airline</label>
+                    <input
+                      type="text"
+                      placeholder="Airline"
+                      className="form-control"
+                      name="airline"
+                      value={editData.airline}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          airline: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="form-label text-light">PNR</label>
+                    <input
+                      type="text"
+                      placeholder="PNR"
+                      className="form-control"
+                      name="pnr"
+                      value={editData.pnr}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          pnr: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="form-label text-light">Flight No</label>
+                    <input
+                      type="text"
+                      placeholder="Flight No"
+                      className="form-control"
+                      name="flightno"
+                      value={editData.flightno}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          flightno: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setShowModal1(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button className="btn btn-success" onClick={handleUpdate}>
+                    Update
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {filteredGroups.length === 0 && (
           <div className="col-12 text-center text-danger">
             No stocks available.
@@ -1168,7 +1544,7 @@ function StockManagement() {
         </div>
       )}
 
-      <ToastContainer position="bottom-right" autoClose={1000} />
+      <ToastContainer position="bottom-right" autoClose={1500} />
     </div>
   );
 }

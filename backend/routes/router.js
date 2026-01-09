@@ -6,7 +6,7 @@ import { promises as fsp } from "fs";
 import bcrypt from "bcrypt";
 import path from "path";
 import { fileURLToPath } from "url";
-import XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import pool from "../config/db.js";
 
 dotenv.config();
@@ -434,6 +434,49 @@ router.get("/allstocks", async (req, res) => {
   }
 });
 
+router.delete("/deletestockdata/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || isNaN(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID",
+    });
+  }
+
+  try {
+    const sql = "DELETE FROM stock WHERE id = ?";
+
+    pool.query(sql, [id], (err, result) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          message: "Database error",
+          error: err,
+        });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "No stock found with this ID",
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Stock deleted successfully",
+      });
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error,
+    });
+  }
+});
+
 router.post("/salespost", async (req, res) => {
   try {
     let { stock_id, sector, pax, dot, dotb, airline, agent, fare, pnr } =
@@ -689,6 +732,129 @@ router.get("/allsales", async (req, res) => {
   }
 });
 
+router.delete("/deletesalesdata/:sector", async (req, res) => {
+  const { sector } = req.params;
+
+  if (!sector) {
+    return res.status(400).json({
+      success: false,
+      message: "Sector is required",
+    });
+  }
+
+  let connection;
+
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const [[{ saleCount }]] = await connection.query(
+      "SELECT COUNT(*) AS saleCount FROM sales WHERE sector = ?",
+      [sector]
+    );
+
+    if (saleCount === 0) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "No sales found for this sector",
+      });
+    }
+
+    await connection.query("DELETE FROM sales WHERE sector = ?", [sector]);
+
+    const [updateResult] = await connection.query(
+      "UPDATE stock SET sold = sold - ? WHERE sector = ?",
+      [saleCount, sector]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      throw new Error("Stock sector not found");
+    }
+
+    await connection.commit();
+
+    res.status(200).json({
+      success: true,
+      message: "Sales deleted successfully",
+      deletedSales: saleCount,
+    });
+  } catch (err) {
+    if (connection) await connection.rollback();
+
+    console.error("Delete sales error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+router.delete("/deletesalesid/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || isNaN(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID",
+    });
+  }
+
+  let connection;
+
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const [[sale]] = await connection.query(
+      "SELECT sector, stock_id FROM sales WHERE id = ?",
+      [id]
+    );
+
+    if (!sale) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Sales record not found",
+      });
+    }
+
+    await connection.query("DELETE FROM sales WHERE id = ?", [id]);
+
+    const [updateResult] = await connection.query(
+      `UPDATE stock 
+       SET sold = GREATEST(sold - 1, 0) 
+       WHERE id = ? AND sector = ?`,
+      [sale.stock_id, sale.sector]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      throw new Error("Stock not found for this sale");
+    }
+
+    await connection.commit();
+
+    res.status(200).json({
+      success: true,
+      message: "Sale deleted successfully",
+    });
+  } catch (err) {
+    if (connection) await connection.rollback();
+
+    console.error("Delete sale by ID error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 function isValidEmail(email) {
   return typeof email === "string" && /\S+@\S+\.\S+/.test(email);
 }
@@ -769,6 +935,206 @@ router.get("/allagents", async (req, res) => {
   } catch (error) {
     console.error("❌ Server error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+router.get("/somesalesdata/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || isNaN(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID",
+    });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, sector, pax, dotb, agent FROM sales WHERE id = ?",
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No data found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: rows[0],
+    });
+  } catch (error) {
+    console.error("Get sales data error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+router.put("/updatesales/:id", async (req, res) => {
+  const { id } = req.params;
+  const { sector, pax, dotb, agent } = req.body;
+
+  if (!id || isNaN(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID",
+    });
+  }
+
+  if (!sector || !pax || !dotb || !agent) {
+    return res.status(400).json({
+      success: false,
+      message: "All fields are required",
+    });
+  }
+
+  try {
+    const [rows] = await pool.query(`SELECT * FROM sales WHERE id = ?`, [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Sales record not found",
+      });
+    }
+
+    const oldData = rows[0];
+
+    await pool.query(
+      `INSERT INTO editsales 
+        (stock_id, sector, pax, dot, dotb, airline, agent, fare, pnr, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        oldData.id,
+        oldData.sector,
+        oldData.pax,
+        oldData.dot || null,
+        oldData.dotb,
+        oldData.airline || null,
+        oldData.agent,
+        oldData.fare || null,
+        oldData.pnr || null,
+      ]
+    );
+
+    const [result] = await pool.query(
+      `UPDATE sales 
+       SET sector = ?, pax = ?, dotb = ?, agent = ?
+       WHERE id = ?`,
+      [sector, pax, dotb, agent, id]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Sales updated successfully",
+    });
+  } catch (error) {
+    console.error("Update sales error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+router.get("/somestocksdata/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || isNaN(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID",
+    });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, sector, pax, dot, fare, airline, flightno, pnr FROM stock WHERE id = ?",
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No data found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: rows[0],
+    });
+  } catch (error) {
+    console.error("Get sales data error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+router.put("/updatestocks/:id", async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid stock id",
+    });
+  }
+
+  const { sector, pax, dot, fare, airline, flightno, pnr } = req.body || {};
+
+  try {
+    const [result] = await pool.execute(
+      `
+      UPDATE stock
+      SET
+        sector = ?,
+        pax = ?,
+        dot = ?,
+        fare = ?,
+        airline = ?,
+        flightno = ?,
+        pnr = ?
+      WHERE id = ?
+      `,
+      [
+        sector || null,
+        pax || null,
+        dot || null,
+        fare || null,
+        airline || null,
+        flightno || null,
+        pnr || null,
+        id,
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Stock record not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Stock updated successfully",
+    });
+  } catch (err) {
+    console.error("Update stock error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Database update failed",
+    });
   }
 });
 
@@ -1260,57 +1626,69 @@ router.delete("/emaildelete/:id", async (req, res) => {
   }
 });
 
-function excelSerialToJSDate(serial) {
-  const utcDays = serial - 25569;
-  const utcValue = utcDays * 86400 * 1000;
-  return new Date(utcValue);
-}
+router.get("/alleditsales", async (req, res) => {
+  const sql =
+    "SELECT id, sector, pax, dot, dotb, airline, agent, fare, pnr FROM editsales order by id desc LIMIT 100";
 
-function formatDateToDDMMYYYY(d) {
-  if (!d || !(d instanceof Date) || isNaN(d.getTime())) return null;
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}-${month}-${year}`;
-}
+  try {
+    const [rows] = await pool.query(sql);
+    res.status(200).json({
+      success: true,
+      data: rows,
+    });
+  } catch (error) {
+    console.error("Error fetching edit sales:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch edit sales",
+    });
+  }
+});
+
+router.get("/allsalesdone", async (req, res) => {
+  const sql =
+    "SELECT id, sector, pax, dot, dotb, airline, agent, fare, pnr FROM salesdone order by id desc LIMIT 100";
+
+  try {
+    const [rows] = await pool.query(sql);
+    res.status(200).json({
+      success: true,
+      data: rows,
+    });
+  } catch (error) {
+    console.error("Error fetching edit sales:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch edit sales",
+    });
+  }
+});
 
 function parseDotValue(dot) {
-  if (dot == null) return null;
+  if (!dot) return null;
 
-  if (typeof dot === "number" && !Number.isNaN(dot)) {
-    try {
-      const jsDate = excelSerialToJSDate(dot);
-      return formatDateToDDMMYYYY(jsDate);
-    } catch (e) {
-      return null;
-    }
+  if (typeof dot === "number") {
+    const jsDate = new Date((dot - 25569) * 86400 * 1000);
+    return formatDateToDDMMYYYY(jsDate);
+  }
+
+  if (dot instanceof Date && !isNaN(dot.getTime())) {
+    return formatDateToDDMMYYYY(dot);
   }
 
   if (typeof dot === "string") {
     const s = dot.trim();
+
     const match = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
     if (match) {
       let [, dd, mm, yyyy] = match;
-      if (yyyy.length === 2) {
-        yyyy = "20" + yyyy;
-      }
-      const day = parseInt(dd, 10);
-      const month = parseInt(mm, 10);
-      const year = parseInt(yyyy, 10);
-      const jsDate = new Date(year, month - 1, day);
-      return formatDateToDDMMYYYY(jsDate);
-    }
-
-    const isoTry = s.replace(" ", "T");
-    const jsDate = new Date(isoTry);
-    if (!isNaN(jsDate.getTime())) {
+      if (yyyy.length === 2) yyyy = "20" + yyyy;
+      const jsDate = new Date(+yyyy, +mm - 1, +dd);
       return formatDateToDDMMYYYY(jsDate);
     }
 
     const jsDate2 = new Date(s);
-    if (!isNaN(jsDate2.getTime())) {
-      return formatDateToDDMMYYYY(jsDate2);
-    }
+    if (!isNaN(jsDate2.getTime())) return formatDateToDDMMYYYY(jsDate2);
 
     return s;
   }
@@ -1318,58 +1696,78 @@ function parseDotValue(dot) {
   return null;
 }
 
+function formatDateToDDMMYYYY(d) {
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
 router.post("/upload-stock", upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const filePath = path.join(uploadDir, req.file.filename);
-    const workbook = XLSX.readFile(filePath, { raw: true });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-    const rawRows = XLSX.utils.sheet_to_json(sheet, {
-      defval: null,
-      raw: true,
-    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
 
-    if (!rawRows.length) {
-      return res.status(400).json({ error: "Excel file is empty" });
-    }
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet)
+      return res.status(400).json({ error: "Excel file has no sheets" });
 
     const values = [];
 
-    for (const row of rawRows) {
-      const sector = row["Sector"] ?? row["sector"] ?? null;
-      const pax = row["PAX"] ? Number(row["PAX"]) : null;
-      const fare = row["Fare"] ? Number(row["Fare"]) : null;
-      const airline = row["Airline"] ?? null;
-      const pnr = row["PNR"] ?? null;
-      const flightno = row["FlightNo"] ?? row["flightno"] ?? null;
-      const dot = parseDotValue(row["Dot"]);
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
 
-      if (!sector || !dot) continue;
+      const [
+        srNo,
+        sectorRaw,
+        paxRaw,
+        dotRaw,
+        fareRaw,
+        airlineRaw,
+        pnrRaw,
+        flightnoRaw,
+      ] = row.values.slice(1);
 
-      values.push([sector, pax, dot, fare, airline, flightno, pnr]);
-    }
+      const sector = sectorRaw?.toString().trim() || null;
+      const pax =
+        paxRaw != null && !isNaN(Number(paxRaw)) ? Number(paxRaw) : null;
+      const sold = 0;
+      const dot = parseDotValue(dotRaw);
+      const fare = fareRaw != null ? fareRaw.toString().trim() : null;
+      const airline = airlineRaw?.toString().trim() || null;
+      const flightno = flightnoRaw?.toString().trim() || null;
+      const pnr = pnrRaw?.toString().trim() || null;
 
-    if (!values.length) {
+      if (!sector || !dot) {
+        console.log("Skipping invalid row:", rowNumber, sector, dotRaw);
+        return;
+      }
+
+      values.push([sector, pax, sold, dot, fare, airline, flightno, pnr]);
+    });
+
+    if (!values.length)
       return res.status(400).json({ error: "No valid rows found" });
-    }
 
     await pool.query(
-      `INSERT INTO stock (sector, pax, dot, fare, airline, flightno, pnr)
+      `INSERT INTO stock (sector, pax, sold, dot, fare, airline, flightno, pnr)
        VALUES ?`,
       [values]
     );
 
     return res.status(200).json({
-      message: "Bulk upload successful",
+      message: "Bulk upload successfully",
       rowsInserted: values.length,
     });
   } catch (err) {
     console.error("Upload error:", err);
-    return res.status(500).json({ error: "Upload failed" });
+    return res
+      .status(500)
+      .json({ error: "Upload failed", details: err.message });
   }
 });
 

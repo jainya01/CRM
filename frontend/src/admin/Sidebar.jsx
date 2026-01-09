@@ -8,6 +8,8 @@ const NAV_LINKS = [
   { path: "/admin/dashboard", label: "Dashboard", exact: true },
   { path: "/admin/stockmanagement", label: "Stock Management" },
   { path: "/admin/sales", label: "Sales" },
+  { path: "/admin/editsales", label: "Edit Sales" },
+  { path: "/admin/salesdone", label: "Sales Done" },
   { path: "/admin/OTB", label: "OTB" },
   { path: "/admin/urase", label: "URASE" },
   { path: "/admin/agent", label: "Add Agent" },

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEdit, faXmark } from "@fortawesome/free-solid-svg-icons";
 import "../App.css";
 import { createPortal } from "react-dom";
 
@@ -42,6 +45,55 @@ function Sales() {
   const [groupPages, setGroupPages] = useState({});
   const itemsPerPage = 42;
   const [currentPage, setCurrentPage] = useState(1);
+  const { id } = useParams();
+  const [showAgentList, setShowAgentList] = useState(false);
+  const [showSectorList, setShowSectorList] = useState(false);
+  const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const agentInputRef = useRef(null);
+  const agentDropdownRef = useRef(null);
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        setShowModal(false);
+      }
+
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target)
+      ) {
+        setShowSectorList(false);
+      }
+
+      if (
+        agentDropdownRef.current &&
+        !agentDropdownRef.current.contains(event.target) &&
+        agentInputRef.current &&
+        !agentInputRef.current.contains(event.target)
+      ) {
+        setShowAgentList(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const editSectorOptions = useMemo(() => {
+    return stockList
+      .filter((s) => s.sector)
+      .map((s) => ({
+        id: s.id,
+        sector: s.sector.toString().trim(),
+      }));
+  }, [stockList]);
 
   const setPageForGroup = (key, page) => {
     setGroupPages((prev) => ({ ...prev, [key]: page }));
@@ -95,20 +147,6 @@ function Sales() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [sales]);
-
-  const fetchStocks = async () => {
-    try {
-      const stocksRes = await axios.get(`${API_URL}/allstocks`);
-      if (stocksRes.data && stocksRes.data.success) {
-        setStockList(stocksRes.data.data || []);
-      } else {
-        setStockList([]);
-      }
-    } catch (err) {
-      console.error("fetchStocks error:", err);
-      setStockList([]);
-    }
-  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -574,6 +612,99 @@ function Sales() {
     });
   }, [paginatedGroups]);
 
+  const deletedata = async (sector) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete all sales of this sector?"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const res = await axios.delete(`${API_URL}/deletesalesdata/${sector}`, {
+        data: { staff },
+      });
+
+      toast.success(res.data.message || "Sales deleted");
+    } catch (error) {
+      console.error(error);
+      toast.error("Delete failed");
+    }
+  };
+
+  const deletedata1 = async (id) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this sale?"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const res = await axios.delete(`${API_URL}/deletesalesid/${id}`, {
+        data: { staff },
+      });
+
+      toast.success(res.data.message || "Sale deleted successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Delete failed");
+    }
+  };
+
+  const [showModal, setShowModal] = useState(false);
+  const [editData, setEditData] = useState({
+    id: "",
+    sector: "",
+    pax: "",
+    dotb: "",
+    agent: "",
+  });
+
+  useEffect(() => {
+    someSales();
+  }, []);
+
+  const someSales = async () => {
+    const response = await axios.get(`${API_URL}/somesalesdata/${id}`);
+    setEditData(response.data[0]);
+  };
+
+  const handleUpdate = async () => {
+    if (!editData.id) {
+      toast.warn("No record selected to update.");
+      return;
+    }
+
+    try {
+      const response = await axios.put(
+        `${API_URL}/updatesales/${editData.id}`,
+        {
+          sector: editData.sector,
+          pax: editData.pax,
+          dotb: editData.dotb,
+          agent: editData.agent,
+        }
+      );
+
+      setShowModal(false);
+
+      if (typeof fetchSales === "function") {
+        fetchSales();
+      }
+
+      toast.success(response.data?.message || "Record updated successfully!");
+    } catch (err) {
+      console.error("Update error:", err);
+
+      if (err.response?.data?.message) {
+        toast.error(`Update failed: ${err.response.data.message}`);
+      } else if (err.message) {
+        toast.error(`Update failed: ${err.message}`);
+      } else {
+        toast.error("Update failed. Please try again.");
+      }
+    }
+  };
+
   return (
     <div className="content-wrapper">
       <div className="d-flex flex-wrap justify-content-between mb-0 text-center px-lg-4 m-0 py-3 mt-0 header-color">
@@ -790,10 +921,20 @@ function Sales() {
                   onClick={() => toggleDropdown(cardKey)}
                 >
                   <div
-                    className="item-color1"
+                    className="item-color1 d-flex gap-2"
                     style={{ wordBreak: "break-word", cursor: "pointer" }}
                   >
-                    {group.sector}
+                    {group.sector} |
+                    <div className="d-flex align-items-center justify-content-center">
+                      <FontAwesomeIcon
+                        icon={faXmark}
+                        className="text-danger fw-bold"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deletedata(group.sector);
+                        }}
+                      />
+                    </div>
                   </div>
 
                   <div className="turq-caret" role="button">
@@ -861,6 +1002,7 @@ function Sales() {
                             <th style={{ width: "30%" }}>PAX Name</th>
                             <th style={{ width: "30%" }}>DATE</th>
                             <th style={{ width: "25%" }}>AGENT</th>
+                            <th style={{ width: "25%" }}>ACTION</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -880,7 +1022,7 @@ function Sales() {
                             if (items.length === 0) {
                               return (
                                 <tr>
-                                  <td colSpan="4" className="text-danger">
+                                  <td colSpan="5" className="text-danger">
                                     No Sales Available
                                   </td>
                                 </tr>
@@ -905,6 +1047,38 @@ function Sales() {
                                         {dotb}
                                       </td>
                                       <td>{agent}</td>
+                                      <td>
+                                        <FontAwesomeIcon
+                                          icon={faXmark}
+                                          className="ms-2 text-danger fw-bold"
+                                          style={{ cursor: "pointer" }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deletedata1(it.id);
+                                          }}
+                                        />
+
+                                        <FontAwesomeIcon
+                                          icon={faEdit}
+                                          className="ms-2 text-primary fw-bold"
+                                          style={{ cursor: "pointer" }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+
+                                            setEditData({
+                                              id: it.id,
+                                              sector: it.sector || "",
+                                              pax: it.pax || "",
+                                              dotb: it.dotb
+                                                ? it.dotb.split("T")[0]
+                                                : "",
+                                              agent: it.agent || "",
+                                            });
+
+                                            setShowModal(true);
+                                          }}
+                                        />
+                                      </td>
                                     </tr>
                                   );
                                 })}
@@ -952,6 +1126,220 @@ function Sales() {
                           })()}
                         </tbody>
                       </table>
+
+                      {showModal && (
+                        <div className="modal fade show d-block" tabIndex="-1">
+                          <div
+                            className="modal-dialog modal-dialog-centered"
+                            ref={modalRef}
+                          >
+                            <div className="modal-content custom-color">
+                              <div className="modal-header">
+                                <h5 className="modal-title text-light">
+                                  Edit Sale
+                                </h5>
+
+                                <button
+                                  type="button"
+                                  className="btn-close btn-close-white"
+                                  onClick={() => setShowModal(false)}
+                                ></button>
+                              </div>
+
+                              <div className="modal-body">
+                                <div className="mb-2 position-relative">
+                                  <label className="form-label text-light">
+                                    Sector Name
+                                  </label>
+
+                                  <input
+                                    ref={inputRef}
+                                    type="search"
+                                    className="form-control"
+                                    placeholder="Select Sector"
+                                    name="sector"
+                                    value={editData.sector || ""}
+                                    onChange={(e) =>
+                                      setEditData({
+                                        ...editData,
+                                        sector: e.target.value,
+                                      })
+                                    }
+                                    onFocus={() => setShowSectorList(true)}
+                                    autoComplete="off"
+                                  />
+
+                                  {showSectorList && (
+                                    <ul
+                                      ref={dropdownRef}
+                                      className="list-group position-absolute w-100 list-group-custom1"
+                                      style={{
+                                        zIndex: 1055,
+                                        maxHeight: "250px",
+                                        overflowY: "auto",
+                                      }}
+                                    >
+                                      {editSectorOptions
+                                        .filter((s) =>
+                                          s.sector
+                                            .toLowerCase()
+                                            .includes(
+                                              (
+                                                editData.sector || ""
+                                              ).toLowerCase()
+                                            )
+                                        )
+                                        .map((sectorItem) => (
+                                          <li
+                                            key={sectorItem.id}
+                                            className="list-group-item list-group-item-action text-dark px-3"
+                                            style={{
+                                              cursor: "pointer",
+                                              backgroundColor: "white",
+                                            }}
+                                            onClick={() => {
+                                              setEditData((prev) => ({
+                                                ...prev,
+                                                sector: sectorItem.sector,
+                                              }));
+                                              setShowSectorList(false);
+                                            }}
+                                          >
+                                            {sectorItem.sector}
+                                          </li>
+                                        ))}
+
+                                      {editSectorOptions.length === 0 && (
+                                        <li className="list-group-item text-muted">
+                                          No sector found
+                                        </li>
+                                      )}
+                                    </ul>
+                                  )}
+                                </div>
+
+                                <div className="mb-2">
+                                  <label className="form-label text-light">
+                                    Pax Name
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="PAX Name"
+                                    name="pax"
+                                    value={editData.pax}
+                                    onChange={(e) =>
+                                      setEditData({
+                                        ...editData,
+                                        pax: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+
+                                <div className="mb-2">
+                                  <label className="form-label text-light">
+                                    DOTB
+                                  </label>
+                                  <input
+                                    type="date"
+                                    className="form-control"
+                                    name="dotb"
+                                    value={editData.dotb}
+                                    onChange={(e) =>
+                                      setEditData({
+                                        ...editData,
+                                        dotb: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+
+                                <div className="mb-2 position-relative">
+                                  <label className="form-label text-light">
+                                    Agent Name
+                                  </label>
+
+                                  <input
+                                    ref={agentInputRef}
+                                    type="search"
+                                    className="form-control"
+                                    placeholder="Select Agent"
+                                    name="agent"
+                                    value={editData.agent || ""}
+                                    onChange={(e) =>
+                                      setEditData({
+                                        ...editData,
+                                        agent: e.target.value,
+                                      })
+                                    }
+                                    onFocus={() => setShowAgentList(true)}
+                                    autoComplete="off"
+                                  />
+
+                                  {showAgentList && (
+                                    <ul
+                                      ref={agentDropdownRef}
+                                      className="list-group position-absolute w-100 list-group-custom"
+                                      style={{
+                                        zIndex: 1055,
+                                        maxHeight: "250px",
+                                        overflowY: "auto",
+                                      }}
+                                    >
+                                      {(agents || [])
+                                        .filter((a) =>
+                                          (a.agent_name || "")
+                                            .toLowerCase()
+                                            .includes(
+                                              (
+                                                editData.agent || ""
+                                              ).toLowerCase()
+                                            )
+                                        )
+                                        .map((agent) => (
+                                          <li
+                                            key={agent.id}
+                                            className="list-group-item list-group-item-action text-dark px-3"
+                                            style={{
+                                              cursor: "pointer",
+                                              backgroundColor: "white",
+                                            }}
+                                            onClick={() => {
+                                              setEditData({
+                                                ...editData,
+                                                agent: agent.agent_name || "",
+                                              });
+                                              setShowAgentList(false);
+                                            }}
+                                          >
+                                            {agent.agent_name ||
+                                              "Unnamed Agent"}
+                                          </li>
+                                        ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="modal-footer">
+                                <button
+                                  className="btn btn-secondary"
+                                  onClick={() => setShowModal(false)}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  className="btn btn-success"
+                                  onClick={handleUpdate}
+                                >
+                                  Update
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

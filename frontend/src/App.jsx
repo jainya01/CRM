@@ -10,6 +10,8 @@ import User from "./User";
 import Dashboard from "./admin/Dashboard";
 import StockManagement from "./admin/StockManagement";
 import Sales from "./admin/Sales";
+import EditSales from "./admin/EditSales";
+import SalesDone from "./admin/SalesDone";
 import Otb from "./admin/Otb";
 import Urase from "./admin/Urase";
 import Agent from "./admin/Agent";
@@ -33,6 +35,8 @@ function App() {
             <Route path="sales" element={<Sales />} />
             <Route path="OTB" element={<Otb />} />
             <Route path="urase" element={<Urase />} />
+            <Route path="editsales" element={<EditSales />} />
+            <Route path="salesdone" element={<SalesDone />} />
             <Route path="agent" element={<Agent />} />
             <Route path="staff" element={<Staff />} />
             <Route path="settings" element={<Settings />} />
