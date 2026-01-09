@@ -32,8 +32,8 @@ function SalesDone() {
   const handleSearch = (e) => {
     e.preventDefault();
 
-    if (!search.pnr && !search.dot && !search.sector) {
-      toast.error("Please fill PNR, Date or Sector");
+    if (!search.pnr && !search.dot) {
+      toast.error("Please fill either PNR or Date");
       return;
     }
 
@@ -47,7 +47,7 @@ function SalesDone() {
 
     if (search.dot) {
       filtered = filtered.filter((item) => {
-        if (!item?.dot || typeof item.dot !== "string") return true;
+        if (!item?.dot || typeof item.dot !== "string") return false;
 
         let formattedDot = "";
 
@@ -57,18 +57,10 @@ function SalesDone() {
         } else if (/^\d{4}-\d{2}-\d{2}$/.test(item.dot)) {
           formattedDot = item.dot;
         } else {
-          return true;
+          return false;
         }
 
         return formattedDot === search.dot;
-      });
-    }
-
-    if (search.sector) {
-      filtered = filtered.filter((item) => {
-        if (!item?.sector || typeof item.sector !== "string") return true;
-
-        return item.sector.toLowerCase().includes(search.sector.toLowerCase());
       });
     }
 
