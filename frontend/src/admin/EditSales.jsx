@@ -48,18 +48,29 @@ function EditSales() {
       return;
     }
 
-    let filtered = user;
+    let filtered = Array.isArray(user) ? user : [];
 
     if (search.pnr) {
       filtered = filtered.filter((item) =>
-        item.pnr?.toLowerCase().includes(search.pnr.toLowerCase())
+        item?.pnr?.toLowerCase().includes(search.pnr.toLowerCase())
       );
     }
 
     if (search.dot) {
       filtered = filtered.filter((item) => {
-        const [dd, mm, yyyy] = item.dot.split("-");
-        const formattedDot = `${yyyy}-${mm}-${dd}`;
+        if (!item?.dot || typeof item.dot !== "string") return true;
+
+        let formattedDot = "";
+
+        if (/^\d{2}-\d{2}-\d{4}$/.test(item.dot)) {
+          const [dd, mm, yyyy] = item.dot.split("-");
+          formattedDot = `${yyyy}-${mm}-${dd}`;
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(item.dot)) {
+          formattedDot = item.dot;
+        } else {
+          return true;
+        }
+
         return formattedDot === search.dot;
       });
     }

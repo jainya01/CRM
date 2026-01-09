@@ -32,24 +32,43 @@ function SalesDone() {
   const handleSearch = (e) => {
     e.preventDefault();
 
-    if (!search.pnr && !search.dot) {
-      toast.error("Please fill either PNR or Date");
+    if (!search.pnr && !search.dot && !search.sector) {
+      toast.error("Please fill PNR, Date or Sector");
       return;
     }
 
-    let filtered = user;
+    let filtered = Array.isArray(user) ? user : [];
 
     if (search.pnr) {
       filtered = filtered.filter((item) =>
-        item.pnr?.toLowerCase().includes(search.pnr.toLowerCase())
+        item?.pnr?.toLowerCase().includes(search.pnr.toLowerCase())
       );
     }
 
     if (search.dot) {
       filtered = filtered.filter((item) => {
-        const [dd, mm, yyyy] = item.dot.split("-");
-        const formattedDot = `${yyyy}-${mm}-${dd}`;
+        if (!item?.dot || typeof item.dot !== "string") return true;
+
+        let formattedDot = "";
+
+        if (/^\d{2}-\d{2}-\d{4}$/.test(item.dot)) {
+          const [dd, mm, yyyy] = item.dot.split("-");
+          formattedDot = `${yyyy}-${mm}-${dd}`;
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(item.dot)) {
+          formattedDot = item.dot;
+        } else {
+          return true;
+        }
+
         return formattedDot === search.dot;
+      });
+    }
+
+    if (search.sector) {
+      filtered = filtered.filter((item) => {
+        if (!item?.sector || typeof item.sector !== "string") return true;
+
+        return item.sector.toLowerCase().includes(search.sector.toLowerCase());
       });
     }
 
@@ -147,9 +166,11 @@ function SalesDone() {
   const [showAgentList, setShowAgentList] = useState([]);
 
   const formatForDateInput = (dateStr) => {
-    if (!dateStr) return "";
+    if (!dateStr || typeof dateStr !== "string") return "";
 
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return dateStr;
+    }
 
     if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
       const [dd, mm, yyyy] = dateStr.split("-");
@@ -297,7 +318,9 @@ function SalesDone() {
       <div className="container-fluid px-lg-1 px-xl-4 px-xxl-4 px-2">
         <div className="row mt-3">
           <div className="col-lg-12 col-md-12 col-12 mt-3 mt-lg-0">
-            <h5 className="fw-bold text-success text-decoration-underline">Sales done from other source</h5>
+            <h5 className="fw-bold text-success text-decoration-underline">
+              Sales done from other source
+            </h5>
             <table className="table table-bordered table-striped table-sm text-center mb-0">
               <thead className="table-light">
                 <tr>
