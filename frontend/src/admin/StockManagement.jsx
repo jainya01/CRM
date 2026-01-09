@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import "../App.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faXmark, faEdit } from "@fortawesome/free-solid-svg-icons";
+import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 function startOfWeek(d) {
   const x = new Date(d);
@@ -1144,8 +1144,9 @@ function StockManagement() {
                   <div className="d-flex ms-0 ps-0 d-flex gap-1 align-items-center justify-content-center">
                     <div className="d-flex align-items-center">
                       <FontAwesomeIcon
-                        icon={faXmark}
-                        style={{ color: "#ff0000", cursor: "pointer" }}
+                        icon={faTrash}
+                        title="Delete"
+                        className="custom-color-delete"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (
@@ -1163,7 +1164,7 @@ function StockManagement() {
                     <div className="d-flex align-items-center">
                       <FontAwesomeIcon
                         icon={faEdit}
-                        className="ms-1 me-1 text-primary fw-bold"
+                        className="ms-1 me-1 custom-color-delete"
                         style={{ cursor: "pointer" }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1302,8 +1303,9 @@ function StockManagement() {
                                     <td>{sale.agent ?? "-"}</td>
                                     <td>
                                       <FontAwesomeIcon
-                                        icon={faXmark}
-                                        className="ms-2 text-danger fw-bold"
+                                        icon={faTrash}
+                                        title="Delete"
+                                        className="ms-2 custom-color-delete"
                                         style={{ cursor: "pointer" }}
                                         onClick={(e) => {
                                           e.stopPropagation();

@@ -1664,6 +1664,143 @@ router.get("/allsalesdone", async (req, res) => {
   }
 });
 
+router.delete("/deletesource/:id", (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ message: "ID is required" });
+  }
+
+  const sql = "DELETE FROM salesdone WHERE id = ?";
+
+  pool.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Record not found" });
+    }
+
+    res.status(200).json({ message: "Deleted successfully" });
+  });
+});
+
+router.get("/somesalessource/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || isNaN(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID",
+    });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, sector, pax, dot, dotb, airline, agent,fare, pnr FROM salesdone WHERE id = ?",
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No data found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: rows[0],
+    });
+  } catch (error) {
+    console.error("Get sales data error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+router.put("/updatesalessource/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const { sector, pax, dot, dotb, airline, fare, pnr, agent } = req.body;
+
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID",
+    });
+  }
+
+  if (!sector || !pax || !dot || !dotb || !agent) {
+    return res.status(400).json({
+      success: false,
+      message: "All required fields must be provided",
+    });
+  }
+
+  try {
+    const [rows] = await pool.query(`SELECT * FROM salesdone WHERE id = ?`, [
+      id,
+    ]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Sales record not found",
+      });
+    }
+
+    const oldData = rows[0];
+
+    await pool.query(
+      `INSERT INTO editsales 
+        (stock_id, sector, pax, dot, dotb, airline, agent, fare, pnr, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        oldData.id,
+        oldData.sector,
+        oldData.pax,
+        oldData.dot,
+        oldData.dotb,
+        oldData.airline,
+        oldData.agent,
+        oldData.fare,
+        oldData.pnr,
+      ]
+    );
+
+    await pool.query(
+      `UPDATE salesdone
+       SET sector = ?,
+           pax = ?,
+           dot = ?,
+           dotb = ?,
+           airline = ?,
+           agent = ?,
+           fare = ?,
+           pnr = ?
+       WHERE id = ?`,
+      [sector, pax, dot, dotb, airline, agent, fare, pnr, id]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Sales updated successfully",
+    });
+  } catch (error) {
+    console.error("Update sales error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
 function parseDotValue(dot) {
   if (!dot) return null;
 

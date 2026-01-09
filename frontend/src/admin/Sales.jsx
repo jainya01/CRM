@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEdit, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 import "../App.css";
 import { createPortal } from "react-dom";
 
@@ -45,7 +44,6 @@ function Sales() {
   const [groupPages, setGroupPages] = useState({});
   const itemsPerPage = 42;
   const [currentPage, setCurrentPage] = useState(1);
-  const { id } = useParams();
   const [showAgentList, setShowAgentList] = useState(false);
   const [showSectorList, setShowSectorList] = useState(false);
   const inputRef = useRef(null);
@@ -659,15 +657,6 @@ function Sales() {
     agent: "",
   });
 
-  useEffect(() => {
-    someSales();
-  }, []);
-
-  const someSales = async () => {
-    const response = await axios.get(`${API_URL}/somesalesdata/${id}`);
-    setEditData(response.data[0]);
-  };
-
   const handleUpdate = async () => {
     if (!editData.id) {
       toast.warn("No record selected to update.");
@@ -927,8 +916,9 @@ function Sales() {
                     {group.sector} |
                     <div className="d-flex align-items-center justify-content-center">
                       <FontAwesomeIcon
-                        icon={faXmark}
-                        className="text-danger fw-bold"
+                        icon={faTrash}
+                        title="Delete"
+                        className="custom-color-delete"
                         onClick={(e) => {
                           e.stopPropagation();
                           deletedata(group.sector);
@@ -1049,8 +1039,9 @@ function Sales() {
                                       <td>{agent}</td>
                                       <td>
                                         <FontAwesomeIcon
-                                          icon={faXmark}
-                                          className="ms-2 text-danger fw-bold"
+                                          icon={faTrash}
+                                          title="Delete"
+                                          className="ms-2 custom-color-delete"
                                           style={{ cursor: "pointer" }}
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -1060,7 +1051,8 @@ function Sales() {
 
                                         <FontAwesomeIcon
                                           icon={faEdit}
-                                          className="ms-2 text-primary fw-bold"
+                                          title="Edit"
+                                          className="ms-2 custom-color-delete"
                                           style={{ cursor: "pointer" }}
                                           onClick={(e) => {
                                             e.stopPropagation();

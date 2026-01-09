@@ -154,10 +154,10 @@ function EditSales() {
 
       <div className="container-fluid px-lg-1 px-xl-4 px-xxl-4 px-2">
         <div className="row mt-3">
-          {/* col-lg-6 */}
-
           <div className="col-lg-12 col-md-12 col-12 mb-0 overflow-x-auto">
-            <h5 className="fw-bold">Edited Sales</h5>
+            <h5 className="fw-bold text-success text-decoration-underline">
+              Edited Sales
+            </h5>
             <table className="table table-bordered table-striped table-sm text-center mb-0">
               <thead className="table-light">
                 <tr>
@@ -229,37 +229,6 @@ function EditSales() {
               )}
             </div>
           </div>
-
-          {/* <div className="col-lg-6 col-md-12 col-12 mt-3 mt-lg-0">
-            <h5 className="fw-bold">Sales Done</h5>
-            <table className="table table-bordered table-striped table-sm text-center mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>SL.NO</th>
-                  <th>Sector</th>
-                  <th>PAX</th>
-                  <th>AIRLINE</th>
-                  <th>PNR</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>1</td>
-                  <td>abc</td>
-                  <td>12-12-2025</td>
-                  <td>xyz</td>
-                  <td>xyz</td>
-                </tr>
-                <tr>
-                  <td>2</td>
-                  <td>qqq</td>
-                  <td>11-12-2025</td>
-                  <td>xyz</td>
-                  <td>xyz</td>
-                </tr>
-              </tbody>
-            </table>
-          </div> */}
         </div>
       </div>
 

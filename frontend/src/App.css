@@ -1100,3 +1100,9 @@ aside.admin-sidebar {
 .custom-btn-close {
   filter: invert(1);
 }
+
+.custom-color-delete {
+  color: gray;
+  font-weight: 900;
+  cursor: pointer;
+}
