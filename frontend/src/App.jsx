@@ -20,7 +20,7 @@ import Settings from "./admin/Settings";
 
 function App() {
   return (
-    <BrowserRouter basename="/crm">
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/adminlogin" element={<AdminLogin />} />
