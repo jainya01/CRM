@@ -543,7 +543,7 @@ function Staff() {
                                     </button>
 
                                     <button
-                                      className="btn btn-sm btn-outline-secondary"
+                                      className="btn btn-sm btn-outline-secondary d-flex"
                                       onMouseDown={(e) => e.preventDefault()}
                                       onClick={cancelEdit}
                                     >

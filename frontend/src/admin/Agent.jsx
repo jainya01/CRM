@@ -533,7 +533,7 @@ function Agent() {
 
                                   <div className="col-12 d-flex gap-2">
                                     <button
-                                      className="btn btn-sm btn-outline-success"
+                                      className="btn btn-sm btn-outline-success d-flex"
                                       onMouseDown={(e) => e.preventDefault()}
                                       onClick={(e) =>
                                         saveEdit(displayedIndex, e)
@@ -543,7 +543,7 @@ function Agent() {
                                     </button>
 
                                     <button
-                                      className="btn btn-sm btn-outline-secondary"
+                                      className="btn btn-sm btn-outline-secondary d-flex"
                                       onMouseDown={(e) => e.preventDefault()}
                                       onClick={cancelEdit}
                                     >
