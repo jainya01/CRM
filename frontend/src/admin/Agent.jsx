@@ -165,19 +165,22 @@ function Agent() {
   const saveEdit = async (displayedIndex, e) => {
     if (e) e.stopPropagation();
 
+    const q = search.trim().toLowerCase();
+
     const displayedStaff = staffList.filter((s) => {
-      const q = search.trim().toLowerCase();
       return (
-        !search ||
+        !q ||
         s.name?.toLowerCase().includes(q) ||
         s.email?.toLowerCase().includes(q)
       );
     });
 
     const agentToUpdate = displayedStaff[displayedIndex];
+
     if (!agentToUpdate) {
       toast.error("Agent not found.");
       setEditingIndex(null);
+      setActiveAction({ index: null, type: null });
       return;
     }
 
@@ -190,8 +193,11 @@ function Agent() {
       const payload = {
         agent_name: editValues.name,
         agent_email: editValues.email,
-        agent_password: editValues.password,
       };
+
+      if (editValues.password?.trim()) {
+        payload.agent_password = editValues.password;
+      }
 
       const response = await axios.put(
         `${API_URL}/editagent/${agentId}`,
@@ -201,31 +207,28 @@ function Agent() {
       if (response.data?.success) {
         toast.success("Agent credentials updated successfully");
 
-        const idxInStaffList = staffList.findIndex(
-          (s) =>
-            s.raw?.id === agentId ||
-            s.raw?.agent_id === agentId ||
-            s.raw?.staff_id === agentId
+        setStaffList((prev) =>
+          prev.map((s) => {
+            const id = s.raw?.id ?? s.raw?.agent_id ?? s.raw?.staff_id;
+
+            return id === agentId
+              ? {
+                  ...s,
+                  name: editValues.name,
+                  email: editValues.email,
+                  raw: {
+                    ...s.raw,
+                    agent_name: editValues.name,
+                    agent_email: editValues.email,
+                  },
+                }
+              : s;
+          })
         );
 
-        if (idxInStaffList !== -1) {
-          setStaffList((prev) => {
-            const updatedList = [...prev];
-            updatedList[idxInStaffList] = {
-              ...updatedList[idxInStaffList],
-              name: editValues.name,
-              email: editValues.email,
-              raw: {
-                ...updatedList[idxInStaffList].raw,
-                agent_name: editValues.name,
-                agent_email: editValues.email,
-              },
-            };
-            return updatedList;
-          });
-        }
-
         setEditingIndex(null);
+        setActiveAction({ index: null, type: null });
+
         setEditValues({ name: "", email: "", password: "" });
       } else {
         toast.error(response.data?.message || "Failed to update agent");

@@ -166,9 +166,11 @@ function Staff() {
     });
 
     const agentToUpdate = displayedStaff[displayedIndex];
+
     if (!agentToUpdate) {
       toast.error("Staff not found.");
       setEditingIndex(null);
+      setActiveAction({ index: null, type: null });
       return;
     }
 
@@ -180,7 +182,7 @@ function Staff() {
         staff_email: editValues.staff_email,
       };
 
-      if (editValues.staff_password?.trim() !== "") {
+      if (editValues.staff_password?.trim()) {
         payload.staff_password = editValues.staff_password;
       }
 
@@ -213,6 +215,8 @@ function Staff() {
         });
 
         setEditingIndex(null);
+        setActiveAction({ index: null, type: null });
+
         setEditValues({
           staff_agent: "",
           staff_email: "",
