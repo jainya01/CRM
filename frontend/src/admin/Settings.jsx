@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import { faEye, faEyeSlash, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 function Settings() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -509,6 +509,7 @@ function Settings() {
                       >
                         Admin Email
                       </label>
+
                       <input
                         type="text"
                         id="email-input"
@@ -518,7 +519,7 @@ function Settings() {
                         className={`form-control form-control-sm ${
                           emailErrors.email ? "is-invalid" : ""
                         }`}
-                        placeholder="name@company.com"
+                        placeholder="admin@company.com"
                         required
                       />
                     </div>
@@ -552,7 +553,7 @@ function Settings() {
                       </button>
                       <button
                         type="submit"
-                        className="btn btn-sm btn-success"
+                        className="btn btn-sm btn-outline-success"
                         disabled={adminEmailSubmitting}
                       >
                         {adminEmailSubmitting ? "Adding…" : "Add"}
@@ -585,7 +586,7 @@ function Settings() {
                       <div className="ms-2 d-flex align-items-center">
                         <button
                           type="button"
-                          className="delete-btn btn btn-sm btn-light d-flex align-items-center fw-bold justify-content-center"
+                          className="delete-btn btn btn-sm d-flex align-items-center fw-bold justify-content-center"
                           onClick={() => handleAdminDelete(datas.id, index)}
                           disabled={isDeleting1}
                           aria-disabled={isDeleting1}
@@ -598,7 +599,12 @@ function Settings() {
                               aria-hidden="true"
                             />
                           ) : (
-                            "✖"
+                            <span
+                              className="custom-color-delete"
+                              title="Delete admin"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </span>
                           )}
                         </button>
                       </div>
@@ -687,14 +693,14 @@ function Settings() {
                   <div className="d-flex justify-content-between flex-wrap">
                     <button
                       type="submit"
-                      className="btn btn-success mt-2"
+                      className="btn btn-outline-success mt-2"
                       onClick={changePassword}
                     >
                       Update
                     </button>
 
                     <button
-                      className="btn btn-secondary mt-2"
+                      className="btn btn-outline-secondary mt-2"
                       onClick={() => setShowChangePass(false)}
                     >
                       Cancel
@@ -755,7 +761,7 @@ function Settings() {
 
               <div className="mt-2">
                 <button
-                  className="btn btn-success"
+                  className="btn btn-outline-success"
                   onClick={handleLogoUpload}
                   disabled={loading}
                 >
@@ -843,9 +849,10 @@ function Settings() {
                       >
                         Cancel
                       </button>
+
                       <button
                         type="submit"
-                        className="btn btn-sm btn-success"
+                        className="btn btn-sm btn-outline-success"
                         disabled={emailSubmitting}
                       >
                         {emailSubmitting ? "Adding…" : "Add Email"}
@@ -880,7 +887,7 @@ function Settings() {
                       <div className="ms-2 d-flex align-items-center">
                         <button
                           type="button"
-                          className="delete-btn btn btn-sm btn-light d-flex align-items-center justify-content-center"
+                          className="delete-btn btn btn-sm d-flex align-items-center justify-content-center"
                           onClick={() => handleEmailDelete(itemId, key)}
                           disabled={isDeleting}
                           aria-disabled={isDeleting}
@@ -892,7 +899,12 @@ function Settings() {
                               aria-hidden="true"
                             ></span>
                           ) : (
-                            "❌"
+                            <span
+                              className="custom-color-delete"
+                              title="Delete email"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </span>
                           )}
                         </button>
                       </div>

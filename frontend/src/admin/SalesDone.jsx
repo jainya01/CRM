@@ -309,7 +309,7 @@ function SalesDone() {
 
       <div className="container-fluid px-lg-1 px-xl-4 px-xxl-4 px-2">
         <div className="row mt-3">
-          <div className="col-lg-12 col-md-12 col-12 mt-3 mt-lg-0">
+          <div className="col-lg-12 col-md-12 col-12 mt-3 mt-lg-0 overflow-x-auto">
             <h5 className="fw-bold text-success text-decoration-underline">
               Sales done from other source
             </h5>
@@ -335,34 +335,37 @@ function SalesDone() {
                       <td>{data.airline || "-"}</td>
                       <td>{data.pnr || "-"}</td>
                       <td>
-                        <FontAwesomeIcon
-                          icon={faEdit}
-                          title="Edit"
-                          className="custom-color-delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditData({
-                              id: data.id,
-                              sector: data.sector || "",
-                              pax: data.pax || "",
-                              dot: formatForDateInput(data.dot),
-                              dotb: formatForDateInput(data.dotb),
-                              airline: data.airline || "",
-                              fare: data.fare || "",
-                              pnr: data.pnr || "",
-                              agent: data.agent || "",
-                            });
+                        <span title="Edit">
+                          <FontAwesomeIcon
+                            icon={faEdit}
+                            className="custom-color-delete custom-color-edit"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditData({
+                                id: data.id,
+                                sector: data.sector || "",
+                                pax: data.pax || "",
+                                dot: formatForDateInput(data.dot),
+                                dotb: formatForDateInput(data.dotb),
+                                airline: data.airline || "",
+                                fare: data.fare || "",
+                                pnr: data.pnr || "",
+                                agent: data.agent || "",
+                              });
+                              setShowModal(true);
+                            }}
+                          />
+                        </span>
 
-                            setShowModal(true);
-                          }}
-                        />
-
-                        <FontAwesomeIcon
-                          icon={faTrash}
-                          className="custom-color-delete ms-2"
-                          style={{ cursor: "pointer" }}
-                          onClick={() => deleteData(data.id)}
-                        />
+                        <span title="Delete">
+                          <FontAwesomeIcon
+                            icon={faTrash}
+                            className="custom-color-delete ms-2"
+                            title="Delete"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => deleteData(data.id)}
+                          />
+                        </span>
                       </td>
                     </tr>
                   ))
@@ -383,11 +386,12 @@ function SalesDone() {
                   ref={modalRef}
                 >
                   <div className="modal-content custom-color">
-                    <div className="modal-header">
+                    <div className="modal-header py-2">
                       <h5 className="modal-title text-light">Edit: SDFOS</h5>
 
                       <button
                         type="button"
+                        title="Cut"
                         className="btn-close btn-close-white"
                         onClick={() => setShowModal(false)}
                       ></button>
@@ -539,10 +543,10 @@ function SalesDone() {
                         {showAgentList && (
                           <ul
                             ref={agentDropdownRef}
-                            className="list-group position-absolute w-100 list-group-custom"
+                            className="list-group position-absolute w-100 list-group-custom p-0"
                             style={{
                               zIndex: 1055,
-                              maxHeight: "250px",
+                              maxHeight: "130px",
                               overflowY: "auto",
                               backgroundColor: "white",
                             }}
@@ -559,7 +563,10 @@ function SalesDone() {
                                 <li
                                   key={agent.id}
                                   className="list-group-item list-group-item-action text-dark px-3"
-                                  style={{ cursor: "pointer" }}
+                                  style={{
+                                    cursor: "pointer",
+                                    padding: "5px 0px",
+                                  }}
                                   onClick={() => {
                                     setEditData({
                                       ...editData,
@@ -623,10 +630,10 @@ function SalesDone() {
               {filteredData.length > 0 && (
                 <div>
                   <button
-                    className="btn btn-success mt-1 pagination-button"
+                    className="btn btn-success mt-1 download-btn"
                     onClick={handleDownload}
                   >
-                    Download
+                    Download CSV
                   </button>
                 </div>
               )}

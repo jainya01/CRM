@@ -681,6 +681,7 @@ function Dashboard() {
                     onChange={(e) =>
                       setStock((prev) => ({ ...prev, dot: e.target.value }))
                     }
+                    style={{ height: "32px" }}
                   />
                 </div>
 
@@ -692,6 +693,7 @@ function Dashboard() {
                   onChange={(e) =>
                     setStock((prev) => ({ ...prev, pnr: e.target.value }))
                   }
+                  style={{ height: "32px" }}
                 />
               </>
             )}
@@ -704,6 +706,7 @@ function Dashboard() {
                 value={pnrQuery}
                 onChange={(e) => setPnrQuery(e.target.value)}
                 required
+                style={{ height: "32px" }}
               />
             )}
 
@@ -711,7 +714,7 @@ function Dashboard() {
               <input
                 type="date"
                 className="form-control pnr-wise"
-                style={{ width: "220px" }}
+                style={{ width: "220px", height: "32px" }}
                 value={stock.dot}
                 onChange={(e) =>
                   setStock((prev) => ({ ...prev, dot: e.target.value }))
@@ -725,7 +728,7 @@ function Dashboard() {
                 type="search"
                 className="form-control pnr-wise"
                 placeholder="Search by PAX Name"
-                style={{ width: "220px" }}
+                style={{ width: "220px", height: "32px" }}
                 value={paxQuery}
                 onChange={(e) => setPaxQuery(e.target.value)}
                 required
@@ -733,7 +736,11 @@ function Dashboard() {
             )}
 
             <div style={{ width: "90px" }} className="mt-0">
-              <button className="btn btn-secondary" type="submit">
+              <button
+                className="btn btn-secondary d-flex align-items-center"
+                type="submit"
+                style={{ height: "32px" }}
+              >
                 Search
               </button>
             </div>
@@ -998,6 +1005,7 @@ function Dashboard() {
                                     >
                                       Prev
                                     </button>
+
                                     <span className="small text-dark mx-2">
                                       Page {salesPage} of {totalPages}
                                     </span>
@@ -1018,7 +1026,7 @@ function Dashboard() {
                         {salesForSector.length > 0 && (
                           <div className="d-flex justify-content-center mt-2">
                             <button
-                              className="btn btn-success px-1"
+                              className="btn btn-outline-success px-2"
                               onClick={() => {
                                 const sectorStockIds = group.items.map((it) =>
                                   String(it.id)
@@ -1066,6 +1074,7 @@ function Dashboard() {
                 >
                   Prev
                 </button>
+
                 <span className="px-2 small text-muted">
                   Page {currentPage} of {totalPages}
                 </span>

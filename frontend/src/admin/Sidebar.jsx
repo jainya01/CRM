@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import Travels from "../assets/Travel.webp";
 import axios from "axios";
 
@@ -219,12 +221,14 @@ export default function Sidebar() {
                 style={{ width: "106px", height: "50px" }}
               />
             </Link>
+
             <button
+              title="Close"
               className="btn-closed"
               onClick={closeSidebar}
               aria-label="Close sidebar"
             >
-              ❌
+              <FontAwesomeIcon icon={faXmark} className="text-light" />
             </button>
           </div>
 
@@ -256,8 +260,9 @@ export default function Sidebar() {
             ))}
           </div>
 
-          <div className="p-3">
+          <div className="ps-3 pt-2">
             <button
+              title="Logout"
               className="btn text-danger fw-bold text-start w-100"
               onClick={handleLogout}
               type="button"
@@ -310,8 +315,9 @@ export default function Sidebar() {
             ))}
           </div>
 
-          <div className="p-3">
+          <div className="ps-3 pt-2">
             <button
+              title="Logout"
               className="btn text-danger fw-bold w-100 text-start"
               onClick={handleLogout}
               type="button"

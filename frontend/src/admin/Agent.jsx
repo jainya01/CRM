@@ -3,6 +3,8 @@ import "../App.css";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import { Link } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEdit } from "@fortawesome/free-solid-svg-icons";
 
 function Agent() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -16,6 +18,10 @@ function Agent() {
   const [staffList, setStaffList] = useState([]);
   const [dropdownIndex, setDropdownIndex] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [activeAction, setActiveAction] = useState({
+    index: null,
+    type: null,
+  });
 
   const [editValues, setEditValues] = useState({
     name: "",
@@ -259,7 +265,7 @@ function Agent() {
         value,
       });
 
-      toast.success("Permission updated!");
+      toast.success("Permission updated successfully!");
     } catch (err) {
       console.error(err);
       toast.error("Failed to update permission");
@@ -335,7 +341,7 @@ function Agent() {
 
             <div className="col-12 col-sm-6 col-lg-3 d-flex gap-2">
               <button
-                className="btn btn-light flex-shrink-0 sector-link"
+                className="btn btn-light flex-shrink-0 sector-link submit-btn"
                 type="submit"
               >
                 Add
@@ -353,7 +359,7 @@ function Agent() {
         </form>
       </div>
 
-      <div className="row p-3">
+      <div className="row p-2 p-lg-3">
         {!paginatedStaff || paginatedStaff.length === 0 ? (
           <div className="col-12">
             <div className="text-center fw-medium text-danger">
@@ -373,65 +379,118 @@ function Agent() {
               globalIndex;
 
             return (
-              <div className="col-12 col-md-12 col-lg-4 mb-3" key={keyId}>
+              <div
+                className="col-12 col-md-12 col-lg-6 col-xl-4 col-xxl-4 mb-3 m-0"
+                key={keyId}
+              >
                 <div className="card border-0 shadow-sm">
                   <div className="card-body p-0">
                     <div className="table-responsive">
-                      <table className="table table-bordered table-striped text-center table-sm table-fixed mb-0">
-                        <thead className="table-light">
+                      <table className="table table-bordered table-striped table-sm table-fixed mb-0">
+                        <thead
+                          className="table-light"
+                          style={{
+                            height: "37px",
+                          }}
+                        >
                           <tr>
-                            <th className="item-color text-start px-2">
+                            <th className="item-color text-start px-2 name-col align-middle">
                               <span
-                                className="text-truncate"
+                                className="text-truncate custom-bg d-block"
                                 style={{
                                   maxWidth: 160,
-                                  display: "inline-block",
                                 }}
                               >
                                 {staff.name}
                               </span>
                             </th>
-                            <th className="text-danger text-start">
+
+                            <th className="item-color text-start email-col align-middle px-2">
                               <span
-                                className="text-truncate"
-                                style={{
-                                  maxWidth: 160,
-                                  display: "inline-block",
-                                }}
+                                className="text-truncate d-block"
+                                style={{ maxWidth: 220 }}
                               >
                                 {staff.email}
                               </span>
                             </th>
-                            <th
-                              className="mt-1 mb-1 d-flex align-items-center justify-content-center"
-                              role="button"
-                            >
-                              <span
-                                onClick={(e) => toggleDropdown(globalIndex, e)}
-                                style={{ cursor: "pointer", marginRight: 8 }}
-                                title="Permissions"
-                              >
-                                📝
-                              </span>
-                              <span
-                                onClick={(e) =>
-                                  startEdit(globalIndex, staff, e)
-                                }
-                                style={{ cursor: "pointer" }}
-                                title="Edit"
-                              >
-                                ✏️
-                              </span>
+
+                            <th className="text-center p-0 align-middle action-col">
+                              <div className="d-flex justify-content-center align-items-center gap-0 item-color">
+                                <span
+                                  className={`action-icon ${
+                                    activeAction.index === globalIndex &&
+                                    activeAction.type === "perm"
+                                      ? "active"
+                                      : ""
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+
+                                    setActiveAction((prev) => {
+                                      if (
+                                        prev.index === globalIndex &&
+                                        prev.type === "perm"
+                                      ) {
+                                        return { index: null, type: null };
+                                      }
+
+                                      return {
+                                        index: globalIndex,
+                                        type: "perm",
+                                      };
+                                    });
+
+                                    toggleDropdown(globalIndex, e);
+                                  }}
+                                  title="Permissions"
+                                >
+                                  📝
+                                </span>
+
+                                <span
+                                  className={`action-icon py-2 ${
+                                    activeAction.index === globalIndex &&
+                                    activeAction.type === "edit"
+                                      ? "active"
+                                      : ""
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+
+                                    setActiveAction((prev) => {
+                                      if (
+                                        prev.index === globalIndex &&
+                                        prev.type === "edit"
+                                      ) {
+                                        return { index: null, type: null };
+                                      }
+
+                                      return {
+                                        index: globalIndex,
+                                        type: "edit",
+                                      };
+                                    });
+
+                                    startEdit(globalIndex, staff, e);
+                                  }}
+                                  title="Edit"
+                                >
+                                  <FontAwesomeIcon
+                                    icon={faEdit}
+                                    className="edit-icon"
+                                  />
+                                </span>
+                              </div>
                             </th>
                           </tr>
                         </thead>
 
-                        <tbody className="text-center">
+                        <tbody>
                           {editingIndex === globalIndex ? (
                             <tr>
                               <td colSpan={3} className="text-start px-3 py-2">
                                 <div className="row g-2">
-                                  <div className="col-12 mb-0">
+                                  <div className="col-12">
                                     <input
                                       ref={editNameRef}
                                       type="text"
@@ -444,7 +503,7 @@ function Agent() {
                                     />
                                   </div>
 
-                                  <div className="col-12 mb-0">
+                                  <div className="col-12">
                                     <input
                                       type="email"
                                       name="email"
@@ -456,7 +515,7 @@ function Agent() {
                                     />
                                   </div>
 
-                                  <div className="col-12 mb-0">
+                                  <div className="col-12">
                                     <input
                                       type="password"
                                       name="password"
@@ -478,6 +537,7 @@ function Agent() {
                                     >
                                       Save
                                     </button>
+
                                     <button
                                       className="btn btn-sm btn-secondary"
                                       onMouseDown={(e) => e.preventDefault()}
@@ -492,20 +552,24 @@ function Agent() {
                           ) : dropdownIndex === globalIndex ? (
                             <>
                               <tr>
+                                {" "}
                                 <td
                                   colSpan={2}
                                   className="text-danger text-start ps-3"
                                 >
+                                  {" "}
                                   <Link
-                                    className="text-danger text-decoration-none"
+                                    className="text-dark text-decoration-none"
                                     to="/admin/agent"
                                   >
-                                    Can View Agents
-                                  </Link>
-                                </td>
-
+                                    {" "}
+                                    Can View Agents{" "}
+                                  </Link>{" "}
+                                </td>{" "}
                                 <td>
+                                  {" "}
                                   <div className="checkbox-wrapper d-flex justify-content-center w-100">
+                                    {" "}
                                     <input
                                       type="checkbox"
                                       checked={
@@ -516,18 +580,15 @@ function Agent() {
                                           staff.raw?.id ??
                                           staff.raw?.agent_id ??
                                           staff.raw?.staff_id;
-
                                         const newValue = e.target.checked
                                           ? 1
                                           : 0;
-
                                         setStaffList((prev) =>
                                           prev.map((s) => {
                                             const id =
                                               s.raw?.id ??
                                               s.raw?.agent_id ??
                                               s.raw?.staff_id;
-
                                             return id === agentId
                                               ? {
                                                   ...s,
@@ -539,7 +600,6 @@ function Agent() {
                                               : s;
                                           })
                                         );
-
                                         updatePermission(
                                           agentId,
                                           "can_view_agents",
@@ -547,33 +607,37 @@ function Agent() {
                                         );
                                       }}
                                       className="custom-checkbox-input"
-                                    />
-
+                                    />{" "}
                                     {Number(staff.raw?.can_view_agents) ===
                                       0 && (
                                       <span className="checkbox-x fw-bolder">
-                                        ✕
+                                        {" "}
+                                        ✕{" "}
                                       </span>
-                                    )}
-                                  </div>
-                                </td>
+                                    )}{" "}
+                                  </div>{" "}
+                                </td>{" "}
                               </tr>
 
                               <tr>
+                                {" "}
                                 <td
                                   colSpan={2}
                                   className="text-danger text-start ps-3"
                                 >
+                                  {" "}
                                   <Link
-                                    className="text-danger text-decoration-none"
+                                    className="text-dark text-decoration-none"
                                     to="/admin/agent"
                                   >
-                                    Can View Fares
-                                  </Link>
-                                </td>
-
+                                    {" "}
+                                    Can View Fares{" "}
+                                  </Link>{" "}
+                                </td>{" "}
                                 <td>
+                                  {" "}
                                   <div className="checkbox-wrapper d-flex justify-content-center w-100">
+                                    {" "}
                                     <input
                                       type="checkbox"
                                       checked={
@@ -584,18 +648,15 @@ function Agent() {
                                           staff.raw?.id ??
                                           staff.raw?.agent_id ??
                                           staff.raw?.staff_id;
-
                                         const newValue = e.target.checked
                                           ? 1
                                           : 0;
-
                                         setStaffList((prev) =>
                                           prev.map((s) => {
                                             const id =
                                               s.raw?.id ??
                                               s.raw?.agent_id ??
                                               s.raw?.staff_id;
-
                                             return id === agentId
                                               ? {
                                                   ...s,
@@ -607,7 +668,6 @@ function Agent() {
                                               : s;
                                           })
                                         );
-
                                         updatePermission(
                                           agentId,
                                           "can_view_fares",
@@ -615,16 +675,16 @@ function Agent() {
                                         );
                                       }}
                                       className="custom-checkbox-input"
-                                    />
-
+                                    />{" "}
                                     {Number(staff.raw?.can_view_fares) ===
                                       0 && (
                                       <span className="checkbox-x fw-bolder">
-                                        ✕
+                                        {" "}
+                                        ✕{" "}
                                       </span>
-                                    )}
-                                  </div>
-                                </td>
+                                    )}{" "}
+                                  </div>{" "}
+                                </td>{" "}
                               </tr>
                             </>
                           ) : null}
@@ -664,7 +724,6 @@ function Agent() {
           </button>
         </div>
       )}
-
       <ToastContainer position="bottom-right" autoClose={1000} />
     </div>
   );

@@ -7,9 +7,11 @@ import {
   useLayoutEffect,
   useMemo,
 } from "react";
+import { toast, ToastContainer } from "react-toastify";
 import "../App.css";
 import axios from "axios";
-import { toast, ToastContainer } from "react-toastify";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faTrash } from "@fortawesome/free-solid-svg-icons";
 
 function SuggestionsPortal({
   parentRect,
@@ -391,7 +393,7 @@ function Urase() {
 
             <div className="col-md-4 col-12 d-flex justify-content-start justify-content-md-start">
               <button
-                className="btn btn-light sector-link w-md-auto"
+                className="btn btn-light sector-link w-md-auto submit-btn"
                 type="submit"
                 disabled={loading}
               >
@@ -442,7 +444,7 @@ function Urase() {
                               }
                               style={{ cursor: "pointer" }}
                             >
-                              You have sent an email by{" "}
+                              You have sent an email{" "}
                               {agentItem.agent_name || "Unknown Agent"}
                               <div className="turq-caret float-end">
                                 {openIndex === globalIndex ? "▴" : "▾"}
@@ -450,6 +452,7 @@ function Urase() {
                             </th>
                           </tr>
                         </thead>
+
                         <tbody>
                           {openIndex === globalIndex && (
                             <tr>
@@ -457,11 +460,11 @@ function Urase() {
                               <td>{agentItem.mail || "No Email"}</td>
                               <td>
                                 <span
-                                  className="ms-2 pointer-class text-danger"
+                                  title="Delete"
+                                  className="custom-color-delete"
                                   onClick={() => deleteData(agentItem.id)}
-                                  style={{ cursor: "pointer" }}
                                 >
-                                  ❌
+                                  <FontAwesomeIcon icon={faTrash} />
                                 </span>
                               </td>
                             </tr>

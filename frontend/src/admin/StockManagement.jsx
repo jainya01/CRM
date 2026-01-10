@@ -865,10 +865,7 @@ function StockManagement() {
             required
           />
 
-          <button
-            className="btn btn-light sector-link submit-btn"
-            type="submit"
-          >
+          <button className="btn sector-link submit-btn" type="submit">
             Submit
           </button>
 
@@ -895,14 +892,15 @@ function StockManagement() {
                 <div style={{ marginTop: "10px" }}>
                   <button
                     type="submit"
-                    className="btn btn-primary btn-sm"
+                    className="btn btn-outline-primary btn-sm"
                     onClick={handleSubmited}
                   >
                     Submit
                   </button>
+
                   <button
                     type="button"
-                    className="btn btn-secondary btn-sm ms-2"
+                    className="btn btn-outline-secondary btn-sm ms-2"
                     onClick={() => setShowModal(false)}
                   >
                     Cancel
@@ -1109,7 +1107,7 @@ function StockManagement() {
           return (
             <div
               key={group.key}
-              className="col-12 col-sm-6 col-md-6 col-lg-4 mb-3"
+              className="col-12 col-sm-6 col-md-6 col-lg-6 col-xl-4 col-xxl-4 mb-3"
             >
               <div className="card border-0 shadow-sm">
                 <div
@@ -1142,29 +1140,10 @@ function StockManagement() {
                   </div>
                   |
                   <div className="d-flex ms-0 ps-0 d-flex gap-1 align-items-center justify-content-center">
-                    <div className="d-flex align-items-center">
-                      <FontAwesomeIcon
-                        icon={faTrash}
-                        title="Delete"
-                        className="custom-color-delete"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (
-                            !window.confirm(
-                              "Are you sure you want to delete this stock?"
-                            )
-                          )
-                            return;
-                          deleteStock(group.items[0].id);
-                          toast.success("Stock deleted successfully");
-                          setOpenIndex(null);
-                        }}
-                      />
-                    </div>
-                    <div className="d-flex align-items-center">
+                    <div className="d-flex align-items-center" title="Edit">
                       <FontAwesomeIcon
                         icon={faEdit}
-                        className="ms-1 me-1 custom-color-delete"
+                        className="ms-1 me-1 custom-color-delete custom-color-edit"
                         style={{ cursor: "pointer" }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1181,6 +1160,26 @@ function StockManagement() {
                           });
 
                           setShowModal1(true);
+                        }}
+                      />
+                    </div>
+
+                    <div className="d-flex align-items-center" title="Delete">
+                      <FontAwesomeIcon
+                        icon={faTrash}
+                        title="Delete"
+                        className="custom-color-delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (
+                            !window.confirm(
+                              "Are you sure you want to delete this stock?"
+                            )
+                          )
+                            return;
+                          deleteStock(group.items[0].id);
+                          toast.success("Stock deleted successfully");
+                          setOpenIndex(null);
                         }}
                       />
                     </div>
@@ -1301,7 +1300,7 @@ function StockManagement() {
                                       {formatDot(sale.dotb ?? sale.dot)}
                                     </td>
                                     <td>{sale.agent ?? "-"}</td>
-                                    <td>
+                                    <td title="Delete">
                                       <FontAwesomeIcon
                                         icon={faTrash}
                                         title="Delete"
@@ -1318,7 +1317,7 @@ function StockManagement() {
 
                                 {matchingSales.length > salesPerPage && (
                                   <tr>
-                                    <td colSpan="4" className="text-center p-2">
+                                    <td colSpan="5" className="text-center p-2">
                                       <button
                                         className="btn btn-sm btn-success mx-1"
                                         disabled={salesPage === 1}

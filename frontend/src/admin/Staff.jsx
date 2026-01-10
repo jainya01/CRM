@@ -3,6 +3,8 @@ import "../App.css";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import { Link } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEdit } from "@fortawesome/free-solid-svg-icons";
 
 function Staff() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -16,6 +18,11 @@ function Staff() {
   const [staffList, setStaffList] = useState([]);
   const [dropdownIndex, setDropdownIndex] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
+
+  const [activeAction, setActiveAction] = useState({
+    index: null,
+    type: null,
+  });
 
   const [editValues, setEditValues] = useState({
     staff_agent: "",
@@ -280,7 +287,7 @@ function Staff() {
         value,
       });
 
-      toast.success("Permission updated!");
+      toast.success("Permission updated successfully!");
     } catch (err) {
       console.error(err);
       toast.error("Failed to update permission");
@@ -346,7 +353,7 @@ function Staff() {
 
             <div className="col-12 col-sm-6 col-lg-3 d-flex gap-2">
               <button
-                className="btn btn-light flex-shrink-0 sector-link"
+                className="btn btn-light flex-shrink-0 sector-link submit-btn"
                 type="submit"
               >
                 Add
@@ -367,7 +374,7 @@ function Staff() {
         </form>
       </div>
 
-      <div className="row p-3">
+      <div className="row p-2 p-lg-3">
         {filteredStaff.length === 0 ? (
           <div className="text-center fw-medium text-danger">
             No staff available.
@@ -378,67 +385,111 @@ function Staff() {
             const keyId = staff.raw?.id ?? staff.staff_email ?? displayedIndex;
 
             return (
-              <div className="col-12 col-md-12 col-lg-4 mb-3" key={keyId}>
+              <div
+                className="col-12 col-md-12 col-lg-6 col-xl-4 col-xxl-4 mb-3 m-0"
+                key={keyId}
+              >
                 <div className="card border-0 shadow-sm">
                   <div className="card-body p-0">
                     <div className="table-responsive">
-                      <table className="table table-bordered table-striped text-center table-sm table-fixed mb-0">
-                        <thead className="table-light">
+                      <table className="table table-bordered table-striped table-sm table-fixed mb-0">
+                        <thead
+                          className="table-light"
+                          style={{ height: "37px" }}
+                        >
                           <tr>
-                            <th className="item-color text-start px-2">
+                            <th className="item-color text-start align-middle name-col px-2">
                               <span
-                                className="text-truncate"
-                                style={{
-                                  maxWidth: 160,
-                                  display: "inline-block",
-                                }}
+                                className="text-truncate d-block"
+                                style={{ maxWidth: 160 }}
                               >
                                 {staff.staff_agent}
                               </span>
                             </th>
-                            <th className="text-danger text-start">
+
+                            <th className="item-color text-start align-middle email-col px-2">
                               <span
-                                className="text-truncate"
-                                style={{
-                                  maxWidth: 160,
-                                  display: "inline-block",
-                                }}
+                                className="text-truncate d-block"
+                                style={{ maxWidth: 200 }}
                               >
                                 {staff.staff_email}
                               </span>
                             </th>
-                            <th
-                              className="mt-1 mb-1 d-flex align-items-center justify-content-center"
-                              role="button"
-                            >
-                              <span
-                                onClick={(e) =>
-                                  toggleDropdown(displayedIndex, e)
-                                }
-                                style={{ cursor: "pointer", marginRight: 8 }}
-                                title="Permissions"
-                              >
-                                📝
-                              </span>
-                              <span
-                                onClick={(e) =>
-                                  startEdit(displayedIndex, staff, e)
-                                }
-                                style={{ cursor: "pointer" }}
-                                title="Edit"
-                              >
-                                ✏️
-                              </span>
+
+                            <th className="text-center align-middle action-col">
+                              <div className="d-flex justify-content-center align-items-center gap-0">
+                                <span
+                                  className={`action-icon ${
+                                    activeAction.index === displayedIndex &&
+                                    activeAction.type === "perm"
+                                      ? "active"
+                                      : ""
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveAction((prev) => {
+                                      if (
+                                        prev.index === displayedIndex &&
+                                        prev.type === "perm"
+                                      ) {
+                                        return { index: null, type: null };
+                                      }
+                                      return {
+                                        index: displayedIndex,
+                                        type: "perm",
+                                      };
+                                    });
+
+                                    toggleDropdown(displayedIndex, e);
+                                  }}
+                                  title="Permissions"
+                                >
+                                  📝
+                                </span>
+
+                                <span
+                                  className={`action-icon py-2 ${
+                                    activeAction.index === displayedIndex &&
+                                    activeAction.type === "edit"
+                                      ? "active"
+                                      : ""
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+
+                                    setActiveAction((prev) => {
+                                      if (
+                                        prev.index === displayedIndex &&
+                                        prev.type === "edit"
+                                      ) {
+                                        return { index: null, type: null };
+                                      }
+                                      return {
+                                        index: displayedIndex,
+                                        type: "edit",
+                                      };
+                                    });
+
+                                    startEdit(displayedIndex, staff, e);
+                                  }}
+                                  title="Edit"
+                                >
+                                  <FontAwesomeIcon
+                                    icon={faEdit}
+                                    className="edit-icon"
+                                  />
+                                </span>
+                              </div>
                             </th>
                           </tr>
                         </thead>
 
-                        <tbody className="text-center">
+                        <tbody>
                           {editingIndex === displayedIndex ? (
                             <tr>
                               <td colSpan={3} className="text-start px-3 py-2">
                                 <div className="row g-2">
-                                  <div className="col-12 mb-0">
+                                  <div className="col-12">
                                     <input
                                       ref={editNameRef}
                                       type="text"
@@ -451,7 +502,7 @@ function Staff() {
                                     />
                                   </div>
 
-                                  <div className="col-12 mb-0">
+                                  <div className="col-12">
                                     <input
                                       type="email"
                                       name="staff_email"
@@ -463,7 +514,7 @@ function Staff() {
                                     />
                                   </div>
 
-                                  <div className="col-12 mb-0">
+                                  <div className="col-12">
                                     <input
                                       type="password"
                                       name="staff_password"
@@ -485,6 +536,7 @@ function Staff() {
                                     >
                                       Save
                                     </button>
+
                                     <button
                                       className="btn btn-sm btn-secondary"
                                       onMouseDown={(e) => e.preventDefault()}
@@ -497,71 +549,66 @@ function Staff() {
                               </td>
                             </tr>
                           ) : dropdownIndex === displayedIndex ? (
-                            <>
-                              <tr>
-                                <td
-                                  colSpan={2}
-                                  className="text-danger text-start ps-3"
+                            <tr>
+                              <td
+                                colSpan={2}
+                                className="item-color text-start ps-3"
+                              >
+                                <Link
+                                  className="item-color text-decoration-none"
+                                  to="/admin/agent"
                                 >
-                                  <Link
-                                    className="text-danger text-decoration-none"
-                                    to="/admin/agent"
-                                  >
-                                    Can View Fares
-                                  </Link>
-                                </td>
+                                  Can View Fares
+                                </Link>
+                              </td>
 
-                                <td>
-                                  <div className="checkbox-wrapper d-flex justify-content-center w-100">
-                                    <input
-                                      type="checkbox"
-                                      checked={
-                                        Number(staff.raw?.can_view_fares) === 1
-                                      }
-                                      onChange={(e) => {
-                                        const agentId =
-                                          staff.raw?.id ??
-                                          staff.raw?.agent_id ??
-                                          staff.raw?.staff_id;
+                              <td>
+                                <div className="checkbox-wrapper d-flex justify-content-center w-100">
+                                  <input
+                                    type="checkbox"
+                                    checked={
+                                      Number(staff.raw?.can_view_fares) === 1
+                                    }
+                                    onChange={(e) => {
+                                      const agentId =
+                                        staff.raw?.id ??
+                                        staff.raw?.agent_id ??
+                                        staff.raw?.staff_id;
 
-                                        const newValue = e.target.checked
-                                          ? 1
-                                          : 0;
+                                      const newValue = e.target.checked ? 1 : 0;
 
-                                        setStaffList((prev) =>
-                                          prev.map((s) => {
-                                            const id =
-                                              s.raw?.id ??
-                                              s.raw?.agent_id ??
-                                              s.raw?.staff_id;
+                                      setStaffList((prev) =>
+                                        prev.map((s) => {
+                                          const id =
+                                            s.raw?.id ??
+                                            s.raw?.agent_id ??
+                                            s.raw?.staff_id;
 
-                                            return id === agentId
-                                              ? {
-                                                  ...s,
-                                                  raw: {
-                                                    ...s.raw,
-                                                    can_view_fares: newValue,
-                                                  },
-                                                }
-                                              : s;
-                                          })
-                                        );
+                                          return id === agentId
+                                            ? {
+                                                ...s,
+                                                raw: {
+                                                  ...s.raw,
+                                                  can_view_fares: newValue,
+                                                },
+                                              }
+                                            : s;
+                                        })
+                                      );
 
-                                        updatePermission(agentId, newValue);
-                                      }}
-                                      className="custom-checkbox-input"
-                                    />
+                                      updatePermission(agentId, newValue);
+                                    }}
+                                    className="custom-checkbox-input"
+                                  />
 
-                                    {Number(staff.raw?.can_view_fares) ===
-                                      0 && (
-                                      <span className="checkbox-x fw-bolder">
-                                        ✕
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            </>
+                                  {Number(staff.raw?.can_view_fares) === 0 && (
+                                    <span className="checkbox-x fw-bolder text-dark">
+                                      ✕
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
                           ) : null}
                         </tbody>
                       </table>

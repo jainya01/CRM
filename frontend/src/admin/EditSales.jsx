@@ -207,7 +207,7 @@ function EditSales() {
               {filteredData.length > itemsPerPage && (
                 <div className="d-flex justify-content-center mt-2 gap-2">
                   <button
-                    className="btn btn-sm btn-success pagination-button"
+                    className="btn btn-sm btn-outline-success pagination-button"
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage((prev) => prev - 1)}
                   >
@@ -219,7 +219,7 @@ function EditSales() {
                   </span>
 
                   <button
-                    className="btn btn-sm btn-success pagination-button"
+                    className="btn btn-sm btn-outline-success pagination-button"
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage((prev) => prev + 1)}
                   >
@@ -231,10 +231,10 @@ function EditSales() {
               {filteredData.length > 0 && (
                 <div>
                   <button
-                    className="btn btn-success mt-1 pagination-button"
+                    className="btn btn-success mt-1 download-btn"
                     onClick={handleDownload}
                   >
-                    Download
+                    Download CSV
                   </button>
                 </div>
               )}

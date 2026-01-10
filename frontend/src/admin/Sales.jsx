@@ -891,7 +891,10 @@ function Sales() {
             </div>
           </div>
 
-          <button className="btn btn-light sector-link" type="submit">
+          <button
+            className="btn btn-light sector-link submit-btn"
+            type="submit"
+          >
             Submit
           </button>
         </form>
@@ -914,7 +917,10 @@ function Sales() {
                     style={{ wordBreak: "break-word", cursor: "pointer" }}
                   >
                     {group.sector} |
-                    <div className="d-flex align-items-center justify-content-center">
+                    <div
+                      className="d-flex align-items-center justify-content-center"
+                      title="Delete"
+                    >
                       <FontAwesomeIcon
                         icon={faTrash}
                         title="Delete"
@@ -1038,38 +1044,40 @@ function Sales() {
                                       </td>
                                       <td>{agent}</td>
                                       <td>
-                                        <FontAwesomeIcon
-                                          icon={faTrash}
-                                          title="Delete"
-                                          className="ms-2 custom-color-delete"
-                                          style={{ cursor: "pointer" }}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            deletedata1(it.id);
-                                          }}
-                                        />
+                                        <span title="Edit">
+                                          <FontAwesomeIcon
+                                            icon={faEdit}
+                                            className="ms-2 custom-color-delete custom-color-edit"
+                                            style={{ cursor: "pointer" }}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
 
-                                        <FontAwesomeIcon
-                                          icon={faEdit}
-                                          title="Edit"
-                                          className="ms-2 custom-color-delete"
-                                          style={{ cursor: "pointer" }}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
+                                              setEditData({
+                                                id: it.id,
+                                                sector: it.sector || "",
+                                                pax: it.pax || "",
+                                                dotb: it.dotb
+                                                  ? it.dotb.split("T")[0]
+                                                  : "",
+                                                agent: it.agent || "",
+                                              });
 
-                                            setEditData({
-                                              id: it.id,
-                                              sector: it.sector || "",
-                                              pax: it.pax || "",
-                                              dotb: it.dotb
-                                                ? it.dotb.split("T")[0]
-                                                : "",
-                                              agent: it.agent || "",
-                                            });
+                                              setShowModal(true);
+                                            }}
+                                          />
+                                        </span>
 
-                                            setShowModal(true);
-                                          }}
-                                        />
+                                        <span title="Delete">
+                                          <FontAwesomeIcon
+                                            icon={faTrash}
+                                            className="ms-2 custom-color-delete"
+                                            style={{ cursor: "pointer" }}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              deletedata1(it.id);
+                                            }}
+                                          />
+                                        </span>
                                       </td>
                                     </tr>
                                   );
@@ -1077,7 +1085,7 @@ function Sales() {
 
                                 {items.length > itemsPerPage && (
                                   <tr>
-                                    <td colSpan="4" className="text-center p-2">
+                                    <td colSpan="5" className="text-center p-2">
                                       <button
                                         className="btn btn-sm btn-success mx-1"
                                         disabled={currentPage === 1}
@@ -1133,6 +1141,7 @@ function Sales() {
 
                                 <button
                                   type="button"
+                                  title="Cut"
                                   className="btn-close btn-close-white"
                                   onClick={() => setShowModal(false)}
                                 ></button>
@@ -1167,7 +1176,7 @@ function Sales() {
                                       className="list-group position-absolute w-100 list-group-custom1"
                                       style={{
                                         zIndex: 1055,
-                                        maxHeight: "250px",
+                                        maxHeight: "244px",
                                         overflowY: "auto",
                                       }}
                                     >
@@ -1187,6 +1196,7 @@ function Sales() {
                                             className="list-group-item list-group-item-action text-dark px-3"
                                             style={{
                                               cursor: "pointer",
+                                              padding: "5px 0px",
                                               backgroundColor: "white",
                                             }}
                                             onClick={() => {
@@ -1275,7 +1285,7 @@ function Sales() {
                                       className="list-group position-absolute w-100 list-group-custom"
                                       style={{
                                         zIndex: 1055,
-                                        maxHeight: "250px",
+                                        maxHeight: "230px",
                                         overflowY: "auto",
                                       }}
                                     >
@@ -1295,6 +1305,7 @@ function Sales() {
                                             className="list-group-item list-group-item-action text-dark px-3"
                                             style={{
                                               cursor: "pointer",
+                                              padding: "5px 0px",
                                               backgroundColor: "white",
                                             }}
                                             onClick={() => {

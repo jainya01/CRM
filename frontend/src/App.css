@@ -7,7 +7,13 @@
 body {
   letter-spacing: 1px;
   word-spacing: 2px;
-  font-family: sans-serif;
+  font-family: "Segoe UI", "BlinkMacSystemFont", sans-serif, Tahoma, Verdana,
+    Helvetica, Arial;
+  font-size: 14px;
+  line-height: 21px;
+  color: rgb(0, 0, 0);
+  font-style: normal;
+  font-weight: 400;
 }
 
 .mobile-sidebar {
@@ -104,6 +110,7 @@ aside.admin-sidebar {
   background: none;
   border: none;
   margin-right: 10px;
+  font-size: 20px;
 }
 
 .logo-image {
@@ -188,8 +195,15 @@ aside.admin-sidebar {
 }
 
 .item-color {
-  color: #dc3545 !important;
-  font-size: 16px;
+  color: black;
+  font-size: 14px;
+  font-weight: 400 !important;
+}
+
+.text-truncate {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .item-color1 {
@@ -632,7 +646,6 @@ aside.admin-sidebar {
   display: flex;
   justify-content: center;
   align-items: center;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .crm-login-wrapper {
@@ -784,9 +797,31 @@ aside.admin-sidebar {
   border: 1px solid #ced4da;
 }
 
-.submit-btn {
-  background-color: #e9ecef !important;
-  color: #000;
+.btn.submit-btn {
+  background-color: #ffffff;
+  color: #0046ff;
+  padding: 0px 10px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.btn.submit-btn:hover {
+  background-color: transparent;
+  color: #ffffff;
+  border-color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn.submit-btn:active {
+  transform: translateY(0);
+}
+
+.btn.submit-btn:focus-visible {
+  outline: 1px solid #ffffff;
+  outline-offset: 3px;
 }
 
 .sales-btn {
@@ -886,9 +921,9 @@ aside.admin-sidebar {
 }
 
 .custom-checkbox-input:not(:checked) {
-  accent-color: red;
+  accent-color: black;
   font-weight: 900;
-  background-color: red !important;
+  background-color: black !important;
 }
 
 .checkbox-x {
@@ -897,7 +932,7 @@ aside.admin-sidebar {
   left: 50%;
   transform: translate(-50%, -55%);
   font-size: 14px;
-  color: red;
+  color: black;
   font-weight: 900;
   pointer-events: none;
   font-weight: bold;
@@ -1026,7 +1061,7 @@ aside.admin-sidebar {
   border-radius: 4px;
   width: 50%;
   padding: 5px 12px;
-  font-size: 17px;
+  font-size: 14px;
   outline: none;
   position: relative;
   z-index: 1;
@@ -1105,4 +1140,104 @@ aside.admin-sidebar {
   color: gray;
   font-weight: 900;
   cursor: pointer;
+}
+
+.custom-color-edit:hover {
+  color: #0d6efd;
+  font-weight: 900;
+}
+
+.custom-color-delete:hover {
+  color: #dc3545;
+  font-weight: 900;
+}
+
+.custom-color-edit:hover {
+  color: #0d6efd;
+  font-weight: 900;
+}
+
+.table-fixed {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.name-col {
+  width: 130px;
+}
+
+.email-col {
+  width: auto;
+}
+
+.action-col {
+  width: 90px;
+}
+
+.action-icon {
+  cursor: pointer;
+  padding: 6px 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.action-icon:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.action-icon:active {
+  transform: scale(0.9);
+}
+
+.action-icon.active {
+  background-color: #b6d4fe;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+  margin: 1px;
+}
+
+.download-btn {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.35s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.download-btn:hover {
+  transform: translateY(-3px) scale(1.03);
+  background: linear-gradient(135deg, #20c997, #28a745);
+  margin-top: 13px !important;
+}
+
+.download-btn:active {
+  transform: scale(0.96);
+}
+
+.download-btn::after {
+  content: "";
+  position: absolute;
+  width: 120%;
+  height: 120%;
+  background: rgba(255, 255, 255, 0.25);
+  top: -10%;
+  left: -110%;
+  transform: skewX(-20deg);
+  transition: left 0.5s ease;
+}
+
+.download-btn:hover::after {
+  left: 110%;
+}
+
+.edit-icon {
+  font-size: 17px;
 }
