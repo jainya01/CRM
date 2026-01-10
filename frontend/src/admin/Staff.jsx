@@ -150,6 +150,7 @@ function Staff() {
   const cancelEdit = (e) => {
     if (e) e.stopPropagation();
     setEditingIndex(null);
+    setActiveAction({ index: null, type: null });
   };
 
   const saveEdit = async (displayedIndex, e) => {
@@ -528,7 +529,7 @@ function Staff() {
 
                                   <div className="col-12 d-flex gap-2">
                                     <button
-                                      className="btn btn-sm btn-success"
+                                      className="btn btn-sm btn-outline-success"
                                       onMouseDown={(e) => e.preventDefault()}
                                       onClick={(e) =>
                                         saveEdit(displayedIndex, e)
@@ -538,7 +539,7 @@ function Staff() {
                                     </button>
 
                                     <button
-                                      className="btn btn-sm btn-secondary"
+                                      className="btn btn-sm btn-outline-secondary"
                                       onMouseDown={(e) => e.preventDefault()}
                                       onClick={cancelEdit}
                                     >

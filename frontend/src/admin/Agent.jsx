@@ -159,6 +159,7 @@ function Agent() {
   const cancelEdit = (e) => {
     if (e) e.stopPropagation();
     setEditingIndex(null);
+    setActiveAction({ index: null, type: null });
   };
 
   const saveEdit = async (displayedIndex, e) => {
@@ -529,7 +530,7 @@ function Agent() {
 
                                   <div className="col-12 d-flex gap-2">
                                     <button
-                                      className="btn btn-sm btn-success"
+                                      className="btn btn-sm btn-outline-success"
                                       onMouseDown={(e) => e.preventDefault()}
                                       onClick={(e) =>
                                         saveEdit(displayedIndex, e)
@@ -539,7 +540,7 @@ function Agent() {
                                     </button>
 
                                     <button
-                                      className="btn btn-sm btn-secondary"
+                                      className="btn btn-sm btn-outline-secondary"
                                       onMouseDown={(e) => e.preventDefault()}
                                       onClick={cancelEdit}
                                     >
@@ -552,24 +553,19 @@ function Agent() {
                           ) : dropdownIndex === globalIndex ? (
                             <>
                               <tr>
-                                {" "}
                                 <td
                                   colSpan={2}
                                   className="text-danger text-start ps-3"
                                 >
-                                  {" "}
                                   <Link
                                     className="text-dark text-decoration-none"
                                     to="/admin/agent"
                                   >
-                                    {" "}
                                     Can View Agents{" "}
                                   </Link>{" "}
                                 </td>{" "}
                                 <td>
-                                  {" "}
                                   <div className="checkbox-wrapper d-flex justify-content-center w-100">
-                                    {" "}
                                     <input
                                       type="checkbox"
                                       checked={
@@ -611,7 +607,6 @@ function Agent() {
                                     {Number(staff.raw?.can_view_agents) ===
                                       0 && (
                                       <span className="checkbox-x fw-bolder">
-                                        {" "}
                                         ✕{" "}
                                       </span>
                                     )}{" "}
@@ -620,24 +615,19 @@ function Agent() {
                               </tr>
 
                               <tr>
-                                {" "}
                                 <td
                                   colSpan={2}
                                   className="text-danger text-start ps-3"
                                 >
-                                  {" "}
                                   <Link
                                     className="text-dark text-decoration-none"
                                     to="/admin/agent"
                                   >
-                                    {" "}
                                     Can View Fares{" "}
                                   </Link>{" "}
                                 </td>{" "}
                                 <td>
-                                  {" "}
                                   <div className="checkbox-wrapper d-flex justify-content-center w-100">
-                                    {" "}
                                     <input
                                       type="checkbox"
                                       checked={
@@ -679,7 +669,6 @@ function Agent() {
                                     {Number(staff.raw?.can_view_fares) ===
                                       0 && (
                                       <span className="checkbox-x fw-bolder">
-                                        {" "}
                                         ✕{" "}
                                       </span>
                                     )}{" "}
