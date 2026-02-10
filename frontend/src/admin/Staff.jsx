@@ -63,7 +63,7 @@ function Staff() {
         throw error;
       }
     },
-    [API_URL, editingIndex]
+    [API_URL, editingIndex],
   );
 
   useEffect(() => {
@@ -188,7 +188,7 @@ function Staff() {
 
       const response = await axios.put(
         `${API_URL}/editstaff/${agentId}`,
-        payload
+        payload,
       );
 
       if (response.data?.success) {
@@ -243,7 +243,7 @@ function Staff() {
     return staffList.filter(
       (s) =>
         (s.staff_agent || "").toLowerCase().includes(q) ||
-        (s.staff_email || "").toLowerCase().includes(q)
+        (s.staff_email || "").toLowerCase().includes(q),
     );
   }, [staffList, search]);
 
@@ -283,7 +283,7 @@ function Staff() {
               },
             }
           : s;
-      })
+      }),
     );
 
     try {
@@ -310,7 +310,7 @@ function Staff() {
                 },
               }
             : s;
-        })
+        }),
       );
     }
   };
@@ -598,7 +598,7 @@ function Staff() {
                                                 },
                                               }
                                             : s;
-                                        })
+                                        }),
                                       );
 
                                       updatePermission(agentId, newValue);
