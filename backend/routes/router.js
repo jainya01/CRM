@@ -77,7 +77,7 @@ router.post("/adminlogin", async (req, res) => {
     const token = jwt.sign(
       { id: admin.id, email: admin.email, role: admin.role },
       process.env.JWT_SECRET,
-      { expiresIn: "8h" }
+      { expiresIn: "8h" },
     );
 
     res.status(200).json({
@@ -203,7 +203,7 @@ router.put("/editadmin/:id", async (req, res) => {
 router.get("/alladmindata", async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      "SELECT id, email, role FROM admin ORDER BY id DESC"
+      "SELECT id, email, role FROM admin ORDER BY id DESC",
     );
 
     return res.json({
@@ -229,7 +229,7 @@ router.post("/agentlogin", async (req, res) => {
 
     const [rows] = await pool.query(
       "SELECT * FROM agent WHERE agent_email = ? LIMIT 1",
-      [agent_email]
+      [agent_email],
     );
 
     if (rows.length === 0) {
@@ -259,7 +259,7 @@ router.post("/agentlogin", async (req, res) => {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       throw new Error(
-        "JWT_SECRET is not defined in your environment variables."
+        "JWT_SECRET is not defined in your environment variables.",
       );
     }
 
@@ -270,7 +270,7 @@ router.post("/agentlogin", async (req, res) => {
         role: "agent",
       },
       secret,
-      { expiresIn: "8h" }
+      { expiresIn: "8h" },
     );
 
     res.status(200).json({
@@ -301,7 +301,7 @@ router.post("/stafflogin", async (req, res) => {
 
     const [rows] = await pool.query(
       "SELECT * FROM staff WHERE staff_email = ? LIMIT 1",
-      [staff_email]
+      [staff_email],
     );
 
     if (rows.length === 0) {
@@ -331,7 +331,7 @@ router.post("/stafflogin", async (req, res) => {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       throw new Error(
-        "JWT_SECRET is not defined in your environment variables."
+        "JWT_SECRET is not defined in your environment variables.",
       );
     }
 
@@ -342,7 +342,7 @@ router.post("/stafflogin", async (req, res) => {
         role: "staff",
       },
       secret,
-      { expiresIn: "8h" }
+      { expiresIn: "8h" },
     );
 
     res.status(200).json({
@@ -407,7 +407,7 @@ router.get("/allstocks", async (req, res) => {
     const page = Math.max(Number.parseInt(req.query.page || "1", 10), 1);
     let limit = Math.min(
       Math.max(Number.parseInt(req.query.limit || "100", 10), 1),
-      1000
+      1000,
     );
     const offset = (page - 1) * limit;
 
@@ -510,7 +510,7 @@ router.post("/salespost", async (req, res) => {
 
         const [selRows] = await conn.execute(
           "SELECT id, sector, pax, sold, dot, airline, fare, pnr FROM stock WHERE id = ? FOR UPDATE",
-          [stockIdNum]
+          [stockIdNum],
         );
 
         if (!selRows || selRows.length === 0) {
@@ -540,7 +540,7 @@ router.post("/salespost", async (req, res) => {
 
         const [updResult] = await conn.execute(
           "UPDATE stock SET sold = sold + ? WHERE id = ?",
-          [incrementAmount, stockIdNum]
+          [incrementAmount, stockIdNum],
         );
 
         const insertSql = `
@@ -585,7 +585,7 @@ router.post("/salespost", async (req, res) => {
 
         const [selBySector] = await conn.execute(
           "SELECT id, pax, sold, fare, pnr, sector, dot, airline FROM stock WHERE sector = ? LIMIT 1 FOR UPDATE",
-          [sector]
+          [sector],
         );
 
         if (selBySector && selBySector.length > 0) {
@@ -608,7 +608,7 @@ router.post("/salespost", async (req, res) => {
 
           const [updResult] = await conn.execute(
             "UPDATE stock SET sold = sold + ? WHERE id = ?",
-            [incrementAmount, stockRow.id]
+            [incrementAmount, stockRow.id],
           );
 
           const insertSql = `
@@ -694,7 +694,7 @@ router.get("/allsales", async (req, res) => {
     const page = Math.max(Number.parseInt(req.query.page || "1", 10), 1);
     let limit = Math.min(
       Math.max(Number.parseInt(req.query.limit || "100", 10), 1),
-      1000
+      1000,
     );
     const offset = (page - 1) * limit;
 
@@ -749,7 +749,7 @@ router.delete("/deletesalesdata/:sector", async (req, res) => {
 
     const [[{ saleCount }]] = await connection.query(
       "SELECT COUNT(*) AS saleCount FROM sales WHERE sector = ?",
-      [sector]
+      [sector],
     );
 
     if (saleCount === 0) {
@@ -764,7 +764,7 @@ router.delete("/deletesalesdata/:sector", async (req, res) => {
 
     await connection.query(
       "UPDATE stock SET sold = GREATEST(sold - ?, 0) WHERE sector = ?",
-      [saleCount, sector]
+      [saleCount, sector],
     );
 
     await connection.commit();
@@ -797,7 +797,7 @@ router.delete("/deletesalesid/:id", async (req, res) => {
 
     const [[sale]] = await connection.query(
       "SELECT stock_id FROM sales WHERE id = ?",
-      [id]
+      [id],
     );
 
     if (!sale) {
@@ -814,7 +814,7 @@ router.delete("/deletesalesid/:id", async (req, res) => {
       `UPDATE stock 
        SET sold = GREATEST(sold - 1, 0) 
        WHERE id = ?`,
-      [sale.stock_id]
+      [sale.stock_id],
     );
 
     await connection.commit();
@@ -889,7 +889,7 @@ router.get("/allagents", async (req, res) => {
     const page = Math.max(Number.parseInt(req.query.page || "1", 10), 1);
     let limit = Math.min(
       Math.max(Number.parseInt(req.query.limit || "100", 10), 1),
-      1000
+      1000,
     );
     const offset = (page - 1) * limit;
 
@@ -928,7 +928,7 @@ router.get("/somesalesdata/:id", async (req, res) => {
   try {
     const [rows] = await pool.query(
       "SELECT id, sector, pax, dotb, agent FROM sales WHERE id = ?",
-      [id]
+      [id],
     );
 
     if (rows.length === 0) {
@@ -996,14 +996,14 @@ router.put("/updatesales/:id", async (req, res) => {
         oldData.agent,
         oldData.fare || null,
         oldData.pnr || null,
-      ]
+      ],
     );
 
     const [result] = await pool.query(
       `UPDATE sales 
        SET sector = ?, pax = ?, dotb = ?, agent = ?
        WHERE id = ?`,
-      [sector, pax, dotb, agent, id]
+      [sector, pax, dotb, agent, id],
     );
 
     return res.status(200).json({
@@ -1033,7 +1033,7 @@ router.get("/somestocksdata/:id", async (req, res) => {
   try {
     const [rows] = await pool.query(
       "SELECT id, sector, pax, dot, fare, airline, flightno, pnr FROM stock WHERE id = ?",
-      [id]
+      [id],
     );
 
     if (rows.length === 0) {
@@ -1092,7 +1092,7 @@ router.put("/updatestocks/:id", async (req, res) => {
         flightno || null,
         pnr || null,
         id,
-      ]
+      ],
     );
 
     if (result.affectedRows === 0) {
@@ -1126,7 +1126,7 @@ router.put("/agent/toggle/:id", async (req, res) => {
   try {
     const [rows] = await pool.query(
       `UPDATE agent SET ${field} = ? WHERE id = ?`,
-      [value, agentId]
+      [value, agentId],
     );
 
     if (rows.affectedRows === 0) {
@@ -1460,7 +1460,7 @@ router.post("/change-logo", upload.single("file"), async (req, res) => {
     const uploadsDir = path.join(process.cwd(), "uploads");
 
     const [rows] = await pool.execute(
-      "SELECT * FROM logo ORDER BY id ASC LIMIT 1"
+      "SELECT * FROM logo ORDER BY id ASC LIMIT 1",
     );
     const existing = rows.length > 0 ? rows[0] : null;
 
@@ -1475,7 +1475,7 @@ router.post("/change-logo", upload.single("file"), async (req, res) => {
 
       await pool.execute(
         "UPDATE logo SET logo = ?, updated_at = NOW() WHERE id = ?",
-        [filename, existing.id]
+        [filename, existing.id],
       );
 
       return res.status(200).json({
@@ -1486,7 +1486,7 @@ router.post("/change-logo", upload.single("file"), async (req, res) => {
     } else {
       await pool.execute(
         "INSERT INTO logo (id, logo, created_at, updated_at) VALUES (1, ?, NOW(), NOW())",
-        [filename]
+        [filename],
       );
 
       return res.status(201).json({
@@ -1504,7 +1504,7 @@ router.post("/change-logo", upload.single("file"), async (req, res) => {
 router.get("/get-logo", async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      "SELECT id, logo FROM logo ORDER BY id DESC LIMIT 1"
+      "SELECT id, logo FROM logo ORDER BY id DESC LIMIT 1",
     );
 
     if (rows.length === 0) {
@@ -1677,7 +1677,7 @@ router.get("/somesalessource/:id", async (req, res) => {
   try {
     const [rows] = await pool.query(
       "SELECT id, sector, pax, dot, dotb, airline, agent,fare, pnr FROM salesdone WHERE id = ?",
-      [id]
+      [id],
     );
 
     if (rows.length === 0) {
@@ -1747,7 +1747,7 @@ router.put("/updatesalessource/:id", async (req, res) => {
         oldData.agent,
         oldData.fare,
         oldData.pnr,
-      ]
+      ],
     );
 
     await pool.query(
@@ -1761,7 +1761,7 @@ router.put("/updatesalessource/:id", async (req, res) => {
            fare = ?,
            pnr = ?
        WHERE id = ?`,
-      [sector, pax, dot, dotb, airline, agent, fare, pnr, id]
+      [sector, pax, dot, dotb, airline, agent, fare, pnr, id],
     );
 
     return res.status(200).json({
@@ -1870,7 +1870,7 @@ router.post("/upload-stock", upload.single("file"), async (req, res) => {
     await pool.query(
       `INSERT INTO stock (sector, pax, sold, dot, fare, airline, flightno, pnr)
        VALUES ?`,
-      [values]
+      [values],
     );
 
     return res.status(200).json({
