@@ -1,4 +1,4 @@
-/* * {
+* {
   padding: 0;
   margin: 0;
   box-sizing: border-box;
@@ -7,8 +7,9 @@
 body {
   letter-spacing: 1px;
   word-spacing: 2px;
-  font-family: "Segoe UI", "BlinkMacSystemFont", sans-serif, Tahoma, Verdana,
-    Helvetica, Arial;
+  font-family:
+    "Segoe UI", "BlinkMacSystemFont", sans-serif, Tahoma, Verdana, Helvetica,
+    Arial;
   font-size: 14px;
   line-height: 21px;
   color: rgb(0, 0, 0);
@@ -652,7 +653,9 @@ aside.admin-sidebar {
   display: flex;
   justify-content: center;
   align-items: center;
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
 }
 
 .crm-fade-in {
@@ -671,7 +674,9 @@ aside.admin-sidebar {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   padding: 2rem;
   text-align: center;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .crm-login-card:hover {
@@ -721,7 +726,9 @@ aside.admin-sidebar {
   display: block;
   width: 100%;
   text-align: center;
-  transition: background-color 0.18s ease, color 0.18s ease,
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
     border-color 0.18s ease;
 }
 
@@ -804,7 +811,10 @@ aside.admin-sidebar {
   font-size: 15px;
   font-weight: 600;
   border-radius: 6px;
-  transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease,
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    transform 0.2s ease,
     box-shadow 0.2s ease;
 }
 
@@ -1181,7 +1191,9 @@ aside.admin-sidebar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  transition:
+    background-color 0.15s ease,
+    transform 0.1s ease;
 }
 
 .action-icon:hover {
@@ -1245,4 +1257,4 @@ aside.admin-sidebar {
 .edit-icon:hover {
   color: #0d6efd;
   font-weight: 900;
-} */
+}
